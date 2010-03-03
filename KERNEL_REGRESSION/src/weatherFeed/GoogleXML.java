@@ -29,6 +29,7 @@ public class GoogleXML {
         this.cities.put("Austin, TX", "http://www.google.com/ig/api?weather=Austin,TX&hl=en");
         this.cities.put("Chicago, IL", "http://www.google.com/ig/api?weather=Chicago,IL&hl=en");
         this.cities.put("Paris, IDF", "http://www.google.com/ig/api?weather=Paris,IDF&hl=en");
+        this.cities.put("Brisbane, Australia", "http://www.google.com/ig/api?weather=Brisbane,Australia&hl=en");
         try {
             for (String city : this.cities.keySet()) {
                 this.parse(city, this.cities.get(city));
@@ -111,7 +112,7 @@ public class GoogleXML {
                     if (attributes.item(i).getNodeName().equals("data")) {
                         wind = attributes.item(i).getNodeValue();
                         windDirection = wind.substring(6, wind.indexOf("at")-1);
-                        windSpeed = wind.substring(wind.indexOf("mph")-2);
+                        windSpeed = wind.substring(wind.indexOf("at")+3);
                     }
                 }
             }
