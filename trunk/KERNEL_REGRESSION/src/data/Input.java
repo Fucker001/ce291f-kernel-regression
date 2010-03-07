@@ -4,7 +4,6 @@
 package data;
 
 import Jama.*;
-import java.io.File;
 
 /**
  *
@@ -14,12 +13,14 @@ public class Input {
 
     private Matrix matrix;
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         Input input = new Input();
-        System.out.println();
+        Matrix vector = input.getVector(1);
+        vector.print(0, 1);
+        System.out.println(vector);
     }
 
-    public Input(){
+    public Input() {
         this.matrix = new Matrix(SampleData.inputs);
     }
 
@@ -39,9 +40,23 @@ public class Input {
     public Input(String url, String user, String password) {
     }
 
+    /**
+     * @return the matrix
+     */
+    public Matrix getMatrix() {
+        return matrix;
+    }
+
+
+    public double getElement(int i, int j) {
+        double result = 0;
+        result = this.matrix.get(i, j);
+        return result;
+    }
+
     public Matrix getVector(int index) {
         Matrix result = null;
-        result = this.matrix.getMatrix(0, this.matrix.getRowDimension(), index, index);
+        result = this.matrix.getMatrix(0, this.matrix.getRowDimension() - 1, index, index);
         return result;
     }
 
@@ -58,15 +73,25 @@ public class Input {
     }
 
     public void concatenate(Input other) throws IllegalArgumentException {
-        if (this.matrix.getRowDimension() == other.getDimension()) {
-            Matrix concMatrix = new Matrix(this.matrix.getRowDimension(), this.matrix.getColumnDimension() + other.getNumInputs());
-            concMatrix.setMatrix(0, this.matrix.getRowDimension() - 1, 0, this.matrix.getColumnDimension() - 1, this.matrix);
-            concMatrix.setMatrix(0, this.matrix.getRowDimension() - 1, this.matrix.getColumnDimension(),
-                    this.matrix.getColumnDimension() + other.getNumInputs() - 1, this.matrix);
-            this.matrix = concMatrix;
-        } else {
+        if (this.matrix.getRowDimension() != other.getDimension()) {
             throw new IllegalArgumentException();
         }
+        int row = this.matrix.getRowDimension();
+        int column = this.matrix.getColumnDimension();
+        Matrix concMatrix = new Matrix(row, column + other.getNumInputs());
+        concMatrix.setMatrix(0, row - 1, 0, column - 1, this.matrix);
+        concMatrix.setMatrix(0, row - 1, column, column + other.getNumInputs() - 1, other.getMatrix());
+        this.matrix = concMatrix;
+    }
+
+    public static Input concatenate(Input left, Input right){
+        Input result = new Input();
+        try {
+            result = (Input) left.clone();
+        } catch (CloneNotSupportedException ex) {
+            ex.printStackTrace();
+        }
+        result.concatenate(right);
+        return result;
     }
 }
-
