@@ -4,10 +4,8 @@
  */
 package main;
 
-import com.gregdennis.drej.*;
-import data.SampleData;
-import javax.vecmath.GMatrix;
-import javax.vecmath.GVector;
+import data.DataSet;
+import kernel.*;
 
 /**
  *
@@ -19,6 +17,8 @@ public class Main {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        System.out.println(3./2);
+        DataSet dataset = new DataSet();
+
+        Kernel ksolve = new Kernel(dataset);
     }
 }

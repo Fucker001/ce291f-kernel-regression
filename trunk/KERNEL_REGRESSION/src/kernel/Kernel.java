@@ -14,29 +14,48 @@ public class Kernel {
     private Matrix input;
     private Matrix output;
     private Matrix VPMatrix;
-    private ArrayList<Matrix> VPs;
+    private ArrayList<Matrix> VPs = new ArrayList<Matrix>();
     private Matrix K1;
     private final double rho = 0.5;
 
-    public Kernel() {
+    public Kernel(DataSet dataset) {
+        this.dataset = dataset;
         this.input = this.dataset.getInput();
         this.output = this.dataset.getOutput();
-        this.computeLinearKernel();
+
+        // compute the kernels
+        //this.computeLinearKernel();
         this.computeGaussianKernel(12.6);
-        this.computeGaussianKernel(3.2);
+        //this.computeGaussianKernel(3.2);
+
+        // Build the big VP matrix
         this.computeVPs();
         this.K1 = this.VPMatrix.getMatrix(
                 0,
                 this.input.getColumnDimension() / 2 - 1,
                 0,
                 this.VPMatrix.getColumnDimension() - 1);
+        System.out.println("VP Matrix: ");
+        this.VPMatrix.print(5, 2);
+        System.out.println();
+
+        // Print the transpose of the output
+        System.out.println("Output transposed: ");
+        this.output.transpose().print(5, 2);
+        System.out.println();
+
+        // Get the optimal U
+        //Matrix U = this.K1.solve(this.output);
+        Matrix U = this.VPMatrix.solve(this.output.transpose());
+        U.print(0, 1);
     }
 
     private void computeVPs() {
+        this.VPMatrix = new Matrix(this.input.getColumnDimension(), 0);
         for (Matrix vp : this.VPs) {
             this.VPMatrix = append(this.VPMatrix, vp);
         }
-        this.VPMatrix.times(1.0 / this.rho);
+        this.VPMatrix.timesEquals(1.0 / this.rho);
     }
 
     private Matrix append(Matrix left, Matrix right) throws IllegalArgumentException {
@@ -48,7 +67,7 @@ public class Kernel {
         }
         Matrix result = new Matrix(dim, numLeft + numRight);
         // Sets the input and output matrices.
-        result.setMatrix(0, dim - 1, 0, numRight - 1, left);
+        result.setMatrix(0, dim - 1, 0, numLeft - 1, left);
         result.setMatrix(0, dim - 1, numLeft, numLeft + numRight - 1, right);
         return result;
     }
@@ -61,20 +80,28 @@ public class Kernel {
             for (int j = 0; j < size; j++) {
                 double value = 0.0;
                 for (int k = 0; k < dim; k++) {
-                    value += this.input.get(i, k) * this.input.get(j, k);
+                    value += this.input.get(k, i) * this.input.get(k, j);
                 }
                 linearKernel.set(i, j, value);
             }
         }
+        System.out.println("Linear Kernel: ");
+        linearKernel.print(5, 2);
         SingularValueDecomposition linearSvd = new SingularValueDecomposition(linearKernel);
         Matrix VPs = linearSvd.getU();
+        System.out.println("Linear Kernel U: ");
+        VPs.print(5, 2);
         Matrix S = linearSvd.getS();
+        System.out.println("Linear Kernel S: ");
+        S.print(5, 2);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(i, i)));
+                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
             }
         }
         this.VPs.add(VPs);
+        System.out.println("Linear Kernel VPs: ");
+        VPs.print(5, 2);
     }
 
     private void computeGaussianKernel(double sigma) {
@@ -85,7 +112,7 @@ public class Kernel {
             for (int j = 0; j < size; j++) {
                 double value = 0.0;
                 for (int k = 0; k < dim; k++) {
-                    double tmp = this.input.get(i, k) - this.input.get(j, k);
+                    double tmp = this.input.get(k, i) - this.input.get(k, j);
                     value += tmp * tmp;
                 }
                 value = java.lang.Math.exp(-value / (2.0 * sigma * sigma));
@@ -97,10 +124,12 @@ public class Kernel {
         Matrix S = linearSvd.getS();
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(i, i)));
+                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
             }
         }
         this.VPs.add(VPs);
+        System.out.println("Gaussian Kernel (sigma = " + sigma + "): ");
+        VPs.print(5, 2);
     }
 
     public Matrix getVPMatrix() {

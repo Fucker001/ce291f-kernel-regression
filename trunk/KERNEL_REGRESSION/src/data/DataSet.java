@@ -18,7 +18,7 @@ public class DataSet {
         System.out.println();
     }
 
-    private DataSet() {
+    public DataSet() {
         this.input = new Matrix(SampleData.inputs);
         this.output = new Matrix(SampleData.outputs);
     }
@@ -41,7 +41,7 @@ public class DataSet {
         result.output = new Matrix(1, colLeft + colRight);
 
         // Sets the input and output matrices.
-        result.input.setMatrix(0, dim - 1, 0, colRight - 1, left.input);
+        result.input.setMatrix(0, dim - 1, 0, colLeft - 1, left.input);
         result.input.setMatrix(0, dim - 1, colLeft, colLeft + colRight - 1, right.input);
         result.output.setMatrix(0, 0, 0, colRight - 1, left.output);
         result.output.setMatrix(0, 0, colLeft, colLeft + colRight - 1, right.output);
