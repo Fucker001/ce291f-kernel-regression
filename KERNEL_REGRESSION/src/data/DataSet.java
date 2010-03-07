@@ -32,17 +32,17 @@ public class DataSet {
             throw new IllegalArgumentException();
         }
         // Gets the dimensions of input and output matrix.
-        int rowLeft = left.input.getRowDimension();
+        int dim = left.input.getRowDimension();
         int colLeft = left.input.getColumnDimension();
         int colRight = right.input.getColumnDimension();
 
         // Initializes the concatenated input and output matrices.
-        result.input = new Matrix(rowLeft, colLeft + colRight);
+        result.input = new Matrix(dim, colLeft + colRight);
         result.output = new Matrix(1, colLeft + colRight);
 
         // Sets the input and output matrices.
-        result.input.setMatrix(0, rowLeft - 1, 0, colRight - 1, left.input);
-        result.input.setMatrix(0, rowLeft - 1, colLeft, colLeft + colRight - 1, right.input);
+        result.input.setMatrix(0, dim - 1, 0, colRight - 1, left.input);
+        result.input.setMatrix(0, dim - 1, colLeft, colLeft + colRight - 1, right.input);
         result.output.setMatrix(0, 0, 0, colRight - 1, left.output);
         result.output.setMatrix(0, 0, colLeft, colLeft + colRight - 1, right.output);
 
