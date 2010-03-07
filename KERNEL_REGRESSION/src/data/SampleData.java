@@ -11,7 +11,7 @@ package data;
  */
 public class SampleData {
 
-    public static final double[][] inputs = {{1.0,2.0},{4.0,5.0},{7.0,8.0}};
+    public static final double[][] inputs = {{1.0,2.0,5.2},{4.0,5.0,2.1}};
     public static final double[][] outputs = {{15.2, 12.3, 18.9}};
 
 }
