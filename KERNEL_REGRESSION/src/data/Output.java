@@ -1,4 +1,3 @@
-
 package data;
 
 import Jama.*;
@@ -15,10 +14,20 @@ public class Output {
         this.matrix = new Matrix(SampleData.outputs);
     }
 
-    private void load(){
-
+    /**
+     *
+     * @param filePath
+     */
+    public Output(String filePath) {
     }
 
-
-
+    /**
+     *
+     * @param url
+     * @param user
+     * @param password
+     */
+    public Output(String url, String user, String password) {
+    }
+    
 }
