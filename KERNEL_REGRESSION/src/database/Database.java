@@ -1,4 +1,3 @@
-
 package database;
 
 import java.sql.Connection;
@@ -18,9 +17,7 @@ public class Database {
     private String password;
     private Connection connection;
 
-
-
-    public Database (String url, String user, String password) throws SQLException{
+    public Database(String url, String user, String password) throws SQLException {
         this.url = url;
         this.user = user;
         this.password = password;
@@ -47,7 +44,4 @@ public class Database {
     public Connection getConnection() {
         return connection;
     }
-
-
-
 }
