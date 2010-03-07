@@ -1,9 +1,8 @@
 
 package kernel;
 
-import data.Input;
 import Jama.*;
-import data.Output;
+import data.*;
 
 /**
  *
@@ -11,12 +10,10 @@ import data.Output;
  */
 public class Kernel {
 
-    private Input inputTraining;
-    private Input inputValidation;
-    private Input input;
-    private Output outputTraining;
-    private Output outputValidation;
-    private Output output;
+    private DataSet dataset;
+    private DataSet morphisedDataset;
+    private Matrix input;
+    private Matrix output;
     private Matrix kernel;
     private Matrix linearKernel;
     private Matrix gaussianKernel;
@@ -26,18 +23,25 @@ public class Kernel {
     
 
     public Kernel(){
+        this.input = this.dataset.getInput();
+        this.output = this.dataset.getOutput();
+    }
 
+    private void computeKernel(double linearFactor, double gaussianFactor){
+        this.kernel = this.gaussianKernel.times(gaussianFactor).plus(
+                this.linearKernel.times(linearFactor));
+        SingularValueDecomposition svd = this.kernel.svd();
     }
 
     private void computeLinearKernel(){
-        int size = this.input.getNumInputs();
-        int dim = this.input.getDimension();
+        int size = this.input.getColumnDimension();
+        int dim = this.input.getRowDimension();
         this.linearKernel = new Matrix(size, size);
         for (int i = 0; i<size; i++){
             for (int j = 0; j<size; j++){
                 double value = 0.0;
                 for (int k = 0; k < dim; k++){
-                    value += this.input.getElement(i,k) * this.input.getElement(j,k);
+                    value += this.input.get(i,k) * this.input.get(j,k);
                 }
                 this.linearKernel.set(i,j,value);
             }
@@ -45,22 +49,28 @@ public class Kernel {
     }
 
     private void computeGaussianKernel(double sigma){
-        int size = this.input.getNumInputs();
-        int dim = this.input.getDimension();
-        this.linearKernel = new Matrix(size, size);
+        int size = this.input.getColumnDimension();
+        int dim = this.input.getRowDimension();
+        this.gaussianKernel = new Matrix(size, size);
         for (int i = 0; i<size; i++){
             for (int j = 0; j<size; j++){
                 double value = 0.0;
                 for (int k = 0; k < dim; k++){
-                    double tmp = this.input.getElement(i,k) - this.input.getElement(j,k);
+                    double tmp = this.input.get(i,k) - this.input.get(j,k);
                     value += tmp*tmp;
                 }
                 value = java.lang.Math.exp(-value/(2.0 * sigma * sigma));
-                this.linearKernel.set(i,j,value);
+                this.gaussianKernel.set(i,j,value);
             }
         }
     }
 
+    private void optimize(){
+        Matrix modifiedInput = this.morphisedDataset.getModifiedInput();
+        Matrix modifiedInputsTransposed = modifiedInput.transpose();
+        Matrix theta = modifiedInputsTransposed.solve(this.output);
+
+    }
 
 
 }
