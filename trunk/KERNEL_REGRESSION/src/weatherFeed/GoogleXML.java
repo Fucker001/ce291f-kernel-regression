@@ -39,7 +39,7 @@ public class GoogleXML {
          * Later, put this in an upper main class
          */
         try {
-            this.database = new Database("jdbc:postgresql://localhost:5433/weather", "weather", "weathermm");
+            this.database = new Database("jdbc:postgresql://localhost:5433/kernel", "weather", "weathermm");
 
             this.ps = database.getConnection().prepareStatement(
                     "INSERT INTO weather.weather_data ("
@@ -54,10 +54,9 @@ public class GoogleXML {
      * Run one iteration
      */
     public void run() throws Exception {
-        this.timeSQL = new Timestamp(System.currentTimeMillis());
         this.cities = new HashMap<String, String>();
         this.cities.put("Berkeley, CA", "http://www.google.com/ig/api?weather=Berkeley,CA&hl=en");
-        this.cities.put("Albany, CA", "http://www.google.com/ig/api?weather=Albany,CA&hl=en");
+//        this.cities.put("Albany, CA", "http://www.google.com/ig/api?weather=Albany,CA&hl=en");
 //        this.cities.put("San Francisco, CA", "http://www.google.com/ig/api?weather=San+Francisco,CA&hl=en");
 //        this.cities.put("Los Angeles, CA", "http://www.google.com/ig/api?weather=Los+Angeles,CA&hl=en");
 //        this.cities.put("San Diego, CA", "http://www.google.com/ig/api?weather=San+Diego,CA&hl=en");
@@ -70,12 +69,18 @@ public class GoogleXML {
 //        this.cities.put("Washington, DC", "http://www.google.com/ig/api?weather=Washington,DC&hl=en");
 //        this.cities.put("New York City, NY", "http://www.google.com/ig/api?weather=New+York+City,NY&hl=en");
 
-        for (String city : this.cities.keySet()) {
-            try {
-                this.parse(city, this.cities.get(city));
-            } catch (SQLException e) {
-                e.printStackTrace();
+        while (true) {
+            this.timeSQL = new Timestamp(System.currentTimeMillis());
+            for (String city : this.cities.keySet()) {
+                try {
+                    this.parse(city, this.cities.get(city));
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
+
+            //wait for some time (15 minutes)
+            Thread.sleep(new Long(15 * 60 * 1000));
         }
 
     }
@@ -155,6 +160,7 @@ public class GoogleXML {
                 for (int i = 0; i < attributes.getLength(); i++) {
                     if (attributes.item(i).getNodeName().equals("data")) {
                         humidity = attributes.item(i).getNodeValue();
+                        humidity = humidity.substring(10, humidity.indexOf("%"));
                     }
                 }
             }
@@ -175,7 +181,7 @@ public class GoogleXML {
                 + ", Date: " + this.timeSQL.toString()
                 + "\nCondition: " + condition
                 + ", Temperature: " + temperature
-                + " F, Humidity: " + humidity
+                + " F, Humidity: " + humidity + "%"
                 + ", Wind direction: " + windDirection
                 + ", Wind speed: " + windSpeed + ".\n");
 
@@ -199,11 +205,10 @@ public class GoogleXML {
         this.ps.setInt(4, new Integer(humidity));
         this.ps.setString(5, windDirection);
         this.ps.setInt(6, new Integer(windSpeed.substring(0, windSpeed.indexOf("mph") - 1)));
-        this.ps.setInt(7, new Integer(temperature.substring(0, temperature.indexOf("F") - 1)));
+        this.ps.setInt(7, new Integer(temperature));
 
         //Submit
         this.ps.execute();
 
-        //wait for some time
     }
 }
