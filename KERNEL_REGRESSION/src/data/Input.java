@@ -33,21 +33,21 @@ public class Input {
     private void load() {
     }
 
-    public double[] getVector(int index) {
-        double[] result = null;
-
+    public Matrix getVector(int index) {
+        Matrix result = null;
+        result = matrix.getMatrix(0, matrix.getRowDimension(), index, index);
         return result;
     }
 
     public int getDimension() {
         int result = 0;
-
+        result = matrix.getRowDimension();
         return result;
     }
 
     public int getNumInputs() {
         int result = 0;
-
+        result = matrix.getColumnDimension();
         return result;
     }
 
