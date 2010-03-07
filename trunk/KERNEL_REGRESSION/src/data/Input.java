@@ -15,11 +15,13 @@ public class Input {
 
     public static void main(String[] args) {
         Input input = new Input();
-        Matrix vector = input.getVector(1);
-        vector.print(0, 1);
-        System.out.println(vector);
+        System.out.println();
     }
 
+    /**
+     *
+     *
+     */
     public Input() {
         this.matrix = new Matrix(SampleData.inputs);
     }
@@ -46,7 +48,6 @@ public class Input {
     public Matrix getMatrix() {
         return matrix;
     }
-
 
     public double getElement(int i, int j) {
         double result = 0;
@@ -84,7 +85,7 @@ public class Input {
         this.matrix = concMatrix;
     }
 
-    public static Input concatenate(Input left, Input right){
+    public static Input concatenate(Input left, Input right) {
         Input result = new Input();
         try {
             result = (Input) left.clone();
