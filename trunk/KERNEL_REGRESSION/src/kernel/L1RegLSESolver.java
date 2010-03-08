@@ -21,7 +21,7 @@ public class L1RegLSESolver {
 
     public void solve() {
         
-    }
+}
 
     public double getPhiStar() {
         return phiStar;
