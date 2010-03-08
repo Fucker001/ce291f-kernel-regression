@@ -43,7 +43,7 @@ public class DataSet {
         // Sets the input and output matrices.
         result.input.setMatrix(0, dim - 1, 0, colLeft - 1, left.input);
         result.input.setMatrix(0, dim - 1, colLeft, colLeft + colRight - 1, right.input);
-        result.output.setMatrix(0, 0, 0, colRight - 1, left.output);
+        result.output.setMatrix(0, 0, 0, colLeft - 1, left.output);
         result.output.setMatrix(0, 0, colLeft, colLeft + colRight - 1, right.output);
 
         return result;
