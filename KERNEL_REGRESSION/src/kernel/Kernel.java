@@ -1,8 +1,10 @@
 package kernel;
 
 import Jama.*;
+import com.gregdennis.drej.GaussianKernel;
 import data.*;
 import java.util.ArrayList;
+import javax.vecmath.GVector;
 
 /**
  *
@@ -25,8 +27,8 @@ public class Kernel {
 
         // compute the kernels
         //this.computeLinearKernel();
-        this.computeGaussianKernel(12.6);
-        //this.computeGaussianKernel(3.2);
+        this.computeGaussianKernel(0.2);
+        this.computeGaussianKernel(0.7);
 
         // Build the big VP matrix
         this.computeVPs();
@@ -44,10 +46,18 @@ public class Kernel {
         this.output.transpose().print(5, 2);
         System.out.println();
 
+        QRDecomposition QR = new QRDecomposition(this.VPMatrix);
+        System.out.println("R of VPMatrix: ");
+        QR.getR().print(5, 2);
+
+        Matrix solution = QR.solve(this.output.transpose());
+        System.out.println("Solution: ");
+        solution.print(5, 2);
+
         // Get the optimal U
         //Matrix U = this.K1.solve(this.output);
-        Matrix U = this.VPMatrix.solve(this.output.transpose());
-        U.print(0, 1);
+//        Matrix U = this.VPMatrix.transpose().solve(this.output);
+//        U.print(5, 2);
     }
 
     private void computeVPs() {
@@ -88,20 +98,20 @@ public class Kernel {
         System.out.println("Linear Kernel: ");
         linearKernel.print(5, 2);
         SingularValueDecomposition linearSvd = new SingularValueDecomposition(linearKernel);
-        Matrix VPs = linearSvd.getU();
+        Matrix U = linearSvd.getU();
         System.out.println("Linear Kernel U: ");
-        VPs.print(5, 2);
+        U.print(5, 2);
         Matrix S = linearSvd.getS();
         System.out.println("Linear Kernel S: ");
         S.print(5, 2);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
+                U.set(i, j, U.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
             }
         }
-        this.VPs.add(VPs);
+        this.VPs.add(U);
         System.out.println("Linear Kernel VPs: ");
-        VPs.print(5, 2);
+        U.print(5, 2);
     }
 
     private void computeGaussianKernel(double sigma) {
@@ -120,16 +130,20 @@ public class Kernel {
             }
         }
         SingularValueDecomposition linearSvd = new SingularValueDecomposition(gaussianKernel);
-        Matrix VPs = linearSvd.getU();
+        Matrix U = linearSvd.getU();
+        System.out.println("Gaussian Kernel, U (sigma = " + sigma + "): ");
+        U.print(5, 2);
         Matrix S = linearSvd.getS();
+        System.out.println("Gaussian Kernel, S (sigma = " + sigma + "): ");
+        S.print(5, 2);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                VPs.set(i, j, VPs.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
+                U.set(i, j, U.get(i, j) * java.lang.Math.sqrt(S.get(j, j)));
             }
         }
-        this.VPs.add(VPs);
+        this.VPs.add(U);
         System.out.println("Gaussian Kernel (sigma = " + sigma + "): ");
-        VPs.print(5, 2);
+        U.print(5, 2);
     }
 
     public Matrix getVPMatrix() {
