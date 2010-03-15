@@ -1,0 +1,17 @@
+% Calculates the error element wize.
+
+function [Error] = CalculateError (Estimate)
+
+global Outputs NumberOfPoints
+
+%% Initializes the error matrix.
+SizeOfTestSet = size(Estimate,1);
+Error = zeros(SizeOfTestSet,1);
+
+%% Sets the error matrix.
+
+for k = 1:SizeOfTestSet
+    Error(k,1) = (abs(Outputs(1,NumberOfPoints - SizeOfTestSet +k) - Estimate(k,1)))/Outputs(k,1)
+
+Error = abs((Outputs(1, NumberOfPoints - SizeOfTestSet +1 ...
+    : NumberOfPoints)' - Estimate));

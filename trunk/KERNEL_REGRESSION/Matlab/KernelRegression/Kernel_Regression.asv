@@ -1,0 +1,42 @@
+% This is the controller for the algorithm.
+% It allows to choose the paremeters for each Kernel and the penalty factor
+% rho. 
+
+function [] = Kernel_Regression()
+%% Declares the data global to be able to pass it on to other functions.
+global Inputs Outputs %NumberOfPoints
+
+% Load the data.
+[Inputs, Outputs] = loadDataSet();
+
+%% Initialises the Kernel Parameters.
+%rho
+rho = 0.5;
+
+% NumberOfKernels is an integer.
+NumberOfKernels = 5;
+
+%Linear is a boolean.
+Linear = true;
+
+%NumGaussian is a integer and GausParam is an list of sigmas.
+NumGaussian = 2;
+GausParam = [3.2 12.5];
+
+%NumPoly is an integer and PolyParam is an array of c1, c2, d.
+%There is one set of parameters per line.
+NumPoly = 2;
+PolyParam = [10 7 2;3 28 3];
+
+%% Calculate the Kernel. Where Number of Kernels
+Kernel = CalculateKernel(rho,NumberOfKernels,Linear,NumGaussian,GausParam,NumPoly,PolyParam);
+
+%% Solve the L1 regularized least squares.
+SizeOfTrainingSet = 3; %ceil(NumberOfPoints/4);
+[UStar, PhiStar, VStar] = Solve(Kernel,SizeOfTrainingSet);
+
+%% Calculate the estimation.
+[Estimate] = CalculateEstimate(Kernel,SizeOfTrainingSet,UStar,PhiStar,VStar);
+disp(' ');
+disp('Your estimate is')
+disp(Estimate);

@@ -1,0 +1,25 @@
+% Calculates and manipulates a poynominial Kernel of parameters c1, c2 and d.
+% Where K(i,j) = (c1 + c2 xi'xj)^d.
+
+
+function [PolynominialKernel] = CalculatePolynominialKernel(c1,c2,d)
+
+global Inputs
+
+%% Determines the number of points in the data set.
+NumberOfPoints = size(Inputs,2);
+
+%% Calculates the Linear Kernel
+Kernel = zeros(NumberOfPoints,NumberOfPoints);
+
+for i = 1:NumberOfPoints
+    for j = 1:NumberOfPoints
+        Kernel(i,j) = (c1 + c2*(Inputs(:,i)'*Inputs(:,j)))^d)
+    end
+end
+
+
+%% Does an SVD and returns the US^0.5 matrix.
+
+[U,S] = svd(Kernel);
+PolynominialKernel = U*(S.^0.5);

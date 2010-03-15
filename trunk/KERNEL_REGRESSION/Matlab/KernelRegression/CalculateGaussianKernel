@@ -1,0 +1,24 @@
+% Calculates and manipulates a gaussian Kernel.
+% Does an SVD and returns the US^0.5 matrix.
+
+function [GaussianKernel] = CalculateGaussianKernel(sigma)
+
+global Inputs
+
+%% Determines the number of points in the data set.
+NumberOfPoints = size(Inputs,2);
+
+%% Calculates the Gaussian Kernel
+Kernel = zeros(points,points);
+
+for i = 1:NumberOfPoints
+    for j = 1:NumberOfPoints
+        Kernel(i,j) = (norm(Inputs(:,i)-Inputs(:,j),2))^2;
+    end
+end
+Kernel = exp(-Kernel/(2*sigma^2));
+
+%% Does an SVD and returns the US^0.5 matrix.
+
+[U,S] = svd(Kernel);
+GaussiaKernel = U*(S.^0.5);

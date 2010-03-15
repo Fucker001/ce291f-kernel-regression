@@ -1,0 +1,31 @@
+% Calculates and manipulates a gaussian Kernel of parameter sigma.
+% Does an SVD and returns the US^0.5 matrix.
+
+function [GaussianKernel] = CalculateGaussianKernel(sigma)
+
+global Inputs NumberOfPoints NumberOfFeatures
+
+%% Calculates the Gaussian Kernel
+K = zeros(NumberOfPoints,NumberOfPoints);
+
+for i = 1:NumberOfPoints
+    for j = 1:NumberOfPoints
+        for q = 1:NumberOfFeatures
+            difference = Inputs(:,i)-Inputs(:,j);
+        end
+        K(i,j) = (norm(Inputs(:,i)-Inputs(:,j),2))^2
+    end
+end
+Ker = exp(-K/(2*sigma^2));
+
+% Normalisation
+N = trace(Ker);
+Kernel = Ker/N;
+
+clear K Ker
+%% Does an SVD and returns the US^0.5 matrix.
+
+[U,S] = svd(Kernel);
+GaussianKernel = U*(S^0.5);
+
+clear Kernel
