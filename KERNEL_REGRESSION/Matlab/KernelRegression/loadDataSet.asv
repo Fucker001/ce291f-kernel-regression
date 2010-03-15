@@ -1,0 +1,17 @@
+% Loads the data set from two CSV format file.
+% One for the inputs and one for the outputs.
+
+function [Inputs, Outputs] = loadDataSet()
+
+%% Read the CSV file.
+Inputs = csvread('inputs.csv');
+Outputs = csvread('outputs.csv');
+
+%% Check for format compatibility
+
+if (size(Inputs,2) ~= size(Outputs,2))
+    disp('ERROR, Number of points for the inputs and outputs does not match');
+    Inputs = [];
+    Outputs = [];
+end
+    

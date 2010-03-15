@@ -1,0 +1,27 @@
+% Calculates the estimate using many steps.
+
+function [Estimate] = CalculateEstimate(Kernel,SizeOfTrainingSet,UStar,PhiStar,VStar)
+
+global NumberOfPoints Outputs
+
+%% Sets coefficient.
+MuStar = VStar / PhiStar;
+b = Outputs (1,1:SizeOfTrainingSet);
+
+%% Sets the coefficients for the linear combinaison of eigenvectors of the general Kernel.
+N = size(UStar,1);
+LambdaStar = zeros (N,1);
+for k = 1:N
+    LambdaStar(1,k) = abs(UStar(k,1)) / PhiStar;
+end
+
+%% Sets the optimal Kernel.
+KernelStar = zeros (NumberOfPoints,N);
+for k = 1:N
+    KernelStar = KernelStar + LambdaStar(1,k)*(Kernel(:,i)*Kernel(:,i)');
+end
+
+%% Calculates estimate.
+Krho = MuStar * eye(SizeOfTrainingSet) + KernelStar(1:SizeOfTrainingSet,1:SizeOfTrainingSet);
+AlphaStar = (Krho^(-1)) * b;
+Estimate = AlphaStar * Kernel(SizeOfTrainingSet + 1:,1:SizeOfTrainingSet);

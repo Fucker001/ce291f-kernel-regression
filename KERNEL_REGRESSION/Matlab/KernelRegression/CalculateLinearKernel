@@ -1,0 +1,5 @@
+% Calculates a Linear Kernel
+
+function [LinearKernel] = CalculateLinearKernel()
+
+global Inputs
