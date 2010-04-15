@@ -10,7 +10,7 @@ b = Outputs (1,1:SizeOfTrainingSet)';
 
 %% Sets the coefficients for the linear combinaison of eigenvectors of the general Kernel.
 N = size(UStar,1);
-LambdaStar = zeros (N,1);
+LambdaStar = zeros (1,N);
 for k = 1:N
     LambdaStar(1,k) = abs(UStar(k,1)) / PhiStar;
 end
