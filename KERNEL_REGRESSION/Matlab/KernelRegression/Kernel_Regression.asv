@@ -1,42 +1,61 @@
 % This is the controller for the algorithm.
 % It allows to choose the paremeters for each Kernel and the penalty factor
 % rho. 
-
+ 
 function [] = Kernel_Regression()
+%% Clears the workspace and the command window.
+clear
+clc
+tic
 %% Declares the data global to be able to pass it on to other functions.
-global Inputs Outputs %NumberOfPoints
 
-% Load the data.
+global Inputs Outputs NumberOfPoints
+
+% Loads the data.
 [Inputs, Outputs] = loadDataSet();
-
+disp('Data loaded')
+toc
 %% Initialises the Kernel Parameters.
 %rho
-rho = 0.5;
+rho = 0.05;
 
 % NumberOfKernels is an integer.
-NumberOfKernels = 5;
+NumberOfKernels = 1;
 
 %Linear is a boolean.
 Linear = true;
 
 %NumGaussian is a integer and GausParam is an list of sigmas.
-NumGaussian = 2;
-GausParam = [3.2 12.5];
+NumGaussian = 0;
+GausParam = [];
 
 %NumPoly is an integer and PolyParam is an array of c1, c2, d.
-%There is one set of parameters per line.
-NumPoly = 2;
-PolyParam = [10 7 2;3 28 3];
+%There is one set of parameters per row.
+NumPoly = 0;
+PolyParam = [];
+
+%Share for the size of training set
+ShareOfTrainingSet=0.80;
 
 %% Calculate the Kernel. Where Number of Kernels
 Kernel = CalculateKernel(rho,NumberOfKernels,Linear,NumGaussian,GausParam,NumPoly,PolyParam);
 
 %% Solve the L1 regularized least squares.
-SizeOfTrainingSet = 3; %ceil(NumberOfPoints/4);
+SizeOfTrainingSet = ceil(NumberOfPoints*ShareOfTrainingSet);
 [UStar, PhiStar, VStar] = Solve(Kernel,SizeOfTrainingSet);
 
 %% Calculate the estimation.
 [Estimate] = CalculateEstimate(Kernel,SizeOfTrainingSet,UStar,PhiStar,VStar);
-disp(' ');
-disp('Your estimate is')
-disp(Estimate);
+
+%% Calculate error.
+Error = CalculateError(Estimate);
+Error = sum(Error,1)/size(Error,1);
+%% Display results
+
+disp('**************************************************************')
+%disp('Your Estimate is :')
+%disp(Estimate')
+disp(' ')
+disp('Your Error in percent is :')
+disp(Error')
+toc

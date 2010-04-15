@@ -23,3 +23,5 @@ Kernel = Kernel/N;
 
 [U,S] = svd(Kernel);
 GaussianKernel = U*(S.^0.5);
+disp('Gaussian Kernel SVD finished')
+toc
