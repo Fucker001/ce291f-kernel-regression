@@ -23,3 +23,5 @@ Kernel = Kernel/N;
 
 [U,S] = svd(Kernel);
 PolynominialKernel = U*(S.^0.5);
+disp('Polynomial Kernel SVD finished')
+toc

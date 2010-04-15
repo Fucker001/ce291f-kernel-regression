@@ -20,7 +20,8 @@ KernelStar = zeros (NumberOfPoints);
 for k = 1:N
     KernelStar = KernelStar + LambdaStar(1,k)*(Kernel(:,k)*Kernel(:,k)');
 end
-
+disp('Kernel* done.')
+toc
 %% Calculates estimate.
 Krho = MuStar * eye(SizeOfTrainingSet) + KernelStar(1:SizeOfTrainingSet,1:SizeOfTrainingSet);
 AlphaStar = (Krho^(-1)) * b;

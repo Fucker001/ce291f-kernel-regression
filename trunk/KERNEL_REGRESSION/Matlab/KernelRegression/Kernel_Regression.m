@@ -6,38 +6,42 @@ function [] = Kernel_Regression()
 %% Clears the workspace and the command window.
 clear
 clc
-
+tic
 %% Declares the data global to be able to pass it on to other functions.
 
 global Inputs Outputs NumberOfPoints
 
 % Loads the data.
 [Inputs, Outputs] = loadDataSet();
-
+disp('Data loaded')
+toc
 %% Initialises the Kernel Parameters.
 %rho
-rho = 0.5;
+rho = 0.8;
 
 % NumberOfKernels is an integer.
-NumberOfKernels = 4;
+NumberOfKernels = 1;
 
 %Linear is a boolean.
 Linear = true;
 
 %NumGaussian is a integer and GausParam is an list of sigmas.
-NumGaussian = 3;
-GausParam = [1 10 100];
+NumGaussian = 0;
+GausParam = [];
 
 %NumPoly is an integer and PolyParam is an array of c1, c2, d.
 %There is one set of parameters per row.
 NumPoly = 0;
 PolyParam = [];
 
+%Share for the size of training set
+ShareOfTrainingSet=0.25;
+
 %% Calculate the Kernel. Where Number of Kernels
 Kernel = CalculateKernel(rho,NumberOfKernels,Linear,NumGaussian,GausParam,NumPoly,PolyParam);
 
 %% Solve the L1 regularized least squares.
-SizeOfTrainingSet = ceil(NumberOfPoints/4);
+SizeOfTrainingSet = ceil(NumberOfPoints*ShareOfTrainingSet);
 [UStar, PhiStar, VStar] = Solve(Kernel,SizeOfTrainingSet);
 
 %% Calculate the estimation.
@@ -45,12 +49,13 @@ SizeOfTrainingSet = ceil(NumberOfPoints/4);
 
 %% Calculate error.
 Error = CalculateError(Estimate);
-
+Error = sum(Error,1)/size(Error,1);
 %% Display results
 
 disp('**************************************************************')
-disp('Your Estimate is :')
-disp(Estimate')
+%disp('Your Estimate is :')
+%disp(Estimate')
 disp(' ')
 disp('Your Error in percent is :')
 disp(Error')
+toc

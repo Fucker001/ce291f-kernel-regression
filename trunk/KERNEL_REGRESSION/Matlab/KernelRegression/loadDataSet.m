@@ -6,8 +6,8 @@ function [Inputs, Outputs] = loadDataSet()
 global NumberOfPoints
 
 %% Read the CSV file.
-Inputs = csvread('input.csv');
-Outputs = csvread('output.csv');
+Inputs = csvread('input.csv')
+Outputs = csvread('output.csv')
 NumberOfPoints = size(Inputs,2);
 
 %% Check for format compatibility
