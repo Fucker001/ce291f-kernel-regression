@@ -14,12 +14,12 @@ for i = 1:NumberOfPoints
 end
 
 % Normalisation
-%N = trace(Kernel);
-%Kernel = Kernel/N;
+N = trace(Kernel);
+Kernel = Kernel/N;
 
 %% Does an SVD and returns the US^0.5 matrix.
 
 [U,S] = svd(Kernel);
-LinearKernel = U*(S.^0.5);
+LinearKernel = U*(S^0.5);
 disp('Linear Kernel SVD finished')
 toc
