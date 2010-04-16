@@ -6,22 +6,23 @@ global NumberOfPoints Outputs
 
 %% Sets coefficient.
 MuStar = VStar / PhiStar;
-b = Outputs (1,1:SizeOfTrainingSet);
+b = Outputs (1,1:SizeOfTrainingSet)';
 
 %% Sets the coefficients for the linear combinaison of eigenvectors of the general Kernel.
 N = size(UStar,1);
 LambdaStar = zeros (N,1);
 for k = 1:N
-    LambdaStar(1,k) = abs(UStar(k,1)) / PhiStar;
+    LambdaStar(k,1) = abs(UStar(k,1)) / PhiStar;
 end
 
 %% Sets the optimal Kernel.
-KernelStar = zeros (NumberOfPoints,N);
+KernelStar = zeros (NumberOfPoints);
 for k = 1:N
-    KernelStar = KernelStar + LambdaStar(1,k)*(Kernel(:,i)*Kernel(:,i)');
+    KernelStar = KernelStar + LambdaStar(1,k)*(Kernel(:,k)*Kernel(:,k)');
 end
-
+disp('Kernel* done.')
+toc
 %% Calculates estimate.
 Krho = MuStar * eye(SizeOfTrainingSet) + KernelStar(1:SizeOfTrainingSet,1:SizeOfTrainingSet);
 AlphaStar = (Krho^(-1)) * b;
-Estimate = AlphaStar * Kernel(SizeOfTrainingSet + 1:,1:SizeOfTrainingSet);
+Estimate = Kernel(SizeOfTrainingSet + 1:NumberOfPoints,1:SizeOfTrainingSet) * AlphaStar;

@@ -17,7 +17,7 @@ disp('Data loaded')
 toc
 %% Initialises the Kernel Parameters.
 %rho
-rho = 0.05;
+rho = 1;
 
 % NumberOfKernels is an integer.
 NumberOfKernels = 1;
@@ -35,7 +35,7 @@ NumPoly = 0;
 PolyParam = [];
 
 %Share for the size of training set
-ShareOfTrainingSet=0.80;
+ShareOfTrainingSet=0.95;
 
 %% Calculate the Kernel. Where Number of Kernels
 Kernel = CalculateKernel(rho,NumberOfKernels,Linear,NumGaussian,GausParam,NumPoly,PolyParam);
@@ -59,3 +59,4 @@ disp(' ')
 disp('Your Error in percent is :')
 disp(Error')
 toc
+plot(Input,Out);
