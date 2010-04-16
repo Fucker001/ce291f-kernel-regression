@@ -12,17 +12,24 @@ b = Outputs (1,1:SizeOfTrainingSet)';
 N = size(UStar,1);
 LambdaStar = zeros (1,N);
 for k = 1:N
-    LambdaStar(1,k) = abs(UStar(k,1)) / PhiStar;
+    LambdaStar(k,1) = abs(UStar(k,1)) / PhiStar;
 end
 
 %% Sets the optimal Kernel.
 KernelStar = zeros (NumberOfPoints);
 for k = 1:N
-    KernelStar = KernelStar + LambdaStar(1,k)*(Kernel(:,k)*Kernel(:,k)');
+    KernelStar = KernelStar + LambdaStar(k,1)*(Kernel(:,k)*Kernel(:,k)');
 end
 disp('Kernel* done.')
 toc
 %% Calculates estimate.
 Krho = MuStar * eye(SizeOfTrainingSet) + KernelStar(1:SizeOfTrainingSet,1:SizeOfTrainingSet);
-AlphaStar = (Krho^(-1)) * b;
-Estimate = Kernel(SizeOfTrainingSet + 1:NumberOfPoints,1:SizeOfTrainingSet) * AlphaStar;
+AlphaStar = Krho\b;
+Estimate = KernelStar(SizeOfTrainingSet + 1:NumberOfPoints,1:SizeOfTrainingSet) * AlphaStar;
+disp('coco')
+Inputs=csvread('input.csv');
+Inputs=Inputs(1,:);
+figure;
+plot(Inputs,Outputs, '*');
+hold on;
+plot (Inputs, KernelStar(:,1:SizeOfTrainingSet) * AlphaStar);

@@ -3,13 +3,17 @@
 
 function [Inputs, Outputs] = loadDataSet()
 
+global NumberOfPoints
+
 %% Read the CSV file.
-Inputs = csvread('inputs.csv');
-Outputs = csvread('outputs.csv');
+Inputs = csvread('input.csv')
+Inputs = [Inputs ones(length(Inputs(:,1)),1)];
+Outputs = csvread('output.csv')
+NumberOfPoints = size(Inputs,2);
 
 %% Check for format compatibility
 
-if (size(Inputs,2) ~= size(Outputs,2))
+if (NumberOfPoints ~= size(Outputs,2))
     disp('ERROR, Number of points for the inputs and outputs does not match');
     Inputs = [];
     Outputs = [];
