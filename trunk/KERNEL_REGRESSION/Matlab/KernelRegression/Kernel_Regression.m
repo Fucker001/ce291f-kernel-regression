@@ -6,6 +6,7 @@ function [] = Kernel_Regression()
 %% Clears the workspace and the command window.
 clear
 clc
+format compact
 tic
 %% Declares the data global to be able to pass it on to other functions.
 
@@ -23,7 +24,8 @@ rho = 1;
 NumberOfKernels = 1;
 
 %Linear is a boolean.
-Linear = false;
+Linear = true;
+
 
 %NumGaussian is a integer and GausParam is an list of sigmas.
 NumGaussian = 1;
@@ -50,12 +52,16 @@ SizeOfTrainingSet = ceil(NumberOfPoints*ShareOfTrainingSet);
 %% Calculate error.
 Error = CalculateError(Estimate);
 Error = sum(Error,1)/size(Error,1);
-%% Display results
 
+%% Display results
 disp('**************************************************************')
-%disp('Your Estimate is :')
-%disp(Estimate')
+disp('Your Estimate is :')
+disp(Estimate')
 disp(' ')
 disp('Your Error in percent is :')
 disp(Error')
 toc
+
+%% plot
+
+plot(Inputs(1,SizeOfTrainingSet+1:NumberOfPoints),Outputs(1,SizeOfTrainingSet+1:NumberOfPoints),Inputs(1,SizeOfTrainingSet+1:NumberOfPoints),Estimate)

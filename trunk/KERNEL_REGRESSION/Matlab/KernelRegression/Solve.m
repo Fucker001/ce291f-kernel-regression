@@ -15,6 +15,7 @@ n = size(Kernel,2);
 cvx_begin;
     variable u(n);
     minimize( norm(b-A*u) + norm(u,1) );
+    %minimize( norm(b-A*u) );
 cvx_end;
 
 %% Sets the outputs.

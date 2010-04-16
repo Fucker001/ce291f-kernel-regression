@@ -44,7 +44,7 @@ if NumberOfKernels == Linear + NumGaussian + NumPoly
 
     % Concatenates all the individual Kernels together.
     Kernel = [KL KG KP];
-    Kernel = Kernel./rho^2;
+    Kernel = Kernel/rho^2;
 else
     disp('ERROR, number of Kernels mismatch');
     Kernel = [];
