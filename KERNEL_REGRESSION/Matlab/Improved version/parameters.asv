@@ -1,0 +1,10 @@
+This file determines the desired kernels for the kernel regression.,
+It also gives the value of rho.,
+
+Shae
+Rho,1
+Linear_Kernel,1
+Gaussian_Kernel,1,10,100
+Polynomial_Kernel,1,1,2
+Polynomial_Kernel,2,3,2
+Polynomial_Kernel,3,4,3
