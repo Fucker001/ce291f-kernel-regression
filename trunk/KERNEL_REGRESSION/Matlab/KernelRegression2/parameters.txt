@@ -1,0 +1,8 @@
+This file determines the desired kernels for the kernel regression.,
+It also gives the value of rho.,
+
+Share_of_training_set[0;1],0.5
+Rho,0.5
+Linear_Kernel,1
+Gaussian_Kernel,100
+Polynomial_Kernel,

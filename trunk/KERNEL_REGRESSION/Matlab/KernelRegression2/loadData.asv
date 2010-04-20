@@ -1,0 +1,17 @@
+function [Inputs,Outputs,rho,LinearKernel] = loadData ()
+% This funcion loads the inputs and ouputs from .csv files.
+% It also loads the different choices for Kernels from a .xls file.
+
+%% Inputs and Ouputs
+Inputs = csvread('inputs.csv');
+Outputs = csvread('outputs.csv');
+
+%% Parameters
+
+Parameters = csvread('parameters.txt',2,1);
+
+rho = Parameters(1,1);
+LinearKernel = logical(Parameters(2,1));
+GaussianKernel = Parameters(3,:);
+PolynomialKernel = Parameters(4:,)
+

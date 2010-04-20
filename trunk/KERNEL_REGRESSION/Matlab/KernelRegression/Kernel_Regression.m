@@ -18,18 +18,18 @@ disp('Data loaded')
 toc
 %% Initialises the Kernel Parameters.
 %rho
-rho = 1;
+rho = 0.01;
 
 % NumberOfKernels is an integer.
 NumberOfKernels = 1;
 
 %Linear is a boolean.
-Linear = true;
+Linear = false;
 
 
 %NumGaussian is a integer and GausParam is an list of sigmas.
 NumGaussian = 1;
-GausParam = [0.1];
+GausParam = [100];
 
 %NumPoly is an integer and PolyParam is an array of c1, c2, d.
 %There is one set of parameters per row.
@@ -37,7 +37,7 @@ NumPoly = 0;
 PolyParam = [];
 
 %Share for the size of training set
-ShareOfTrainingSet=0.95;
+ShareOfTrainingSet=0.5;
 
 %% Calculate the Kernel. Where Number of Kernels
 Kernel = CalculateKernel(rho,NumberOfKernels,Linear,NumGaussian,GausParam,NumPoly,PolyParam);
