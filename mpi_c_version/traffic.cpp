@@ -10,6 +10,7 @@
 #include <time.h>
 #include <acml.h>
 #include <string>
+#include <time.h>
 #include <sys/time.h>
 
 
@@ -51,7 +52,7 @@ void printMat(double *matrix,unsigned int iDim,unsigned int jDim){
 }
 
 void calcSVD(double *in,double*out,unsigned int dim){
-    // double simulation_time = read_timer( );
+    double simulation_time = read_timer( );
 	
 	//Calculates U*S^.5 where in = U*S*V^T, stores in out
 	double *S = (double*)calloc(dim*dim,sizeof(double));
@@ -376,7 +377,7 @@ void parseKernelInit( char *record, char *delim, int *numG, int *numL, int *numP
 	}
 }
 
-void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim){
+void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
 	double *KtU = (double*) calloc(Nt,sizeof(double));
 	//matrix*vector to calculate right hand side, once only
 	dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
@@ -384,16 +385,17 @@ void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double
 		KtU[i] = output[i]-KtU[i];
 	}
 	// KtU is now the right hand side. 
+	// maybe throw in a dgemv since it's vector matrix?
 	for(int i=0;i<Np;i++){
 		double temp = 0;
 		for(int j=0;j<Nt;j++){
-			temp += -1*cMajor[j+i*dim]*KtU[j];
+			temp += -1*cMajor[j+i*Kdim]*KtU[j];
 		}
 		Beta[i] = temp;
 	}
 	free(KtU);
 }
-void getAlpha(double *Alpha,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim){
+void getAlpha(double *Alpha,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
 	double *KtU = (double*) calloc(Nt,sizeof(double));
 	//matrix*vector to calculate right hand side, once only
 	dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
@@ -406,64 +408,121 @@ void getAlpha(double *Alpha,double *u, int Np,double *cMajor,double *rMajor,doub
 	free(KtU);
 }
 //calculates the phi function
-double phiOfU(double *U,int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim){
-	double toRet=0;
+double phiOfU(double *U,int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+	double uNorm=0;
 	for(int i=0;i<Np;i++){
-		toRet += abs(U[i]);
+		uNorm += abs(U[i]);
 	}
 	double rightHandSide;
-	getAlpha(&rightHandSide,U,Np,cMajor,rMajor,output,Nt,dim);
-	return toRet + rightHandSide;
+	getAlpha(&rightHandSide,U,Np,cMajor,rMajor,output,Nt,Kdim);
+	return uNorm + rightHandSide;
 }
 
-//run l1 optimization
-void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim){
-	//initial U vector gets passed in....
-
-	double *Beta=(double*) calloc(Np,sizeof(double));
-	double Alpha;
-	//Hold the gradient vector
-	double *Gradient=(double*) calloc(Np,sizeof(double));
-	//Hold the derivative of u
-	double *uPrime=(double*) calloc(Np,sizeof(double));
-	// will be used to shift u's
-	// double *tempU;
-	
-	int stepsToTake=100;
-	while(stepsToTake > 0){
-		getBeta(Beta,u,Np,cMajor,rMajor,output,Nt,dim);
-		getAlpha(&Alpha,u,Np,cMajor,rMajor,output,Nt,dim);
-		for(int i=0;i<Np;i++){
-			Gradient[i] = (u[i]<0?-1:1) + Beta[i]/Alpha;
-		}
-		//differentiate U for next iteration
-		
-		// iterate columns
-		for(int i=0;i<Np;i++){
-			double sum =0;
-			// iterate rows
-			for(int j=0;j<Nt;j++){
-				sum += pow(cMajor[j+i*dim],2);
-			}
-			uPrime[i] = sum/Alpha + pow(Beta[i],2)/pow(Alpha,3);
-		}
-		
-		// Newton's method
-		for(int i=0;i<Np;i++){
-			// top part of newtone's branch
-			if (uPrime[i] != 0){
-				u[i] = u[i] - (Gradient[i]/uPrime[i]);
-			}else{
-				// u[i] = u[i];
-			}
-		}
-		// Now u holds the next u for the iteration
-		// check if phi(u) is now <= epsilon...
-		if (phiOfU(u,Np,cMajor,rMajor,output,Nt,dim) <= EPSILON){
-			break;
-		}
-		stepsToTake--;
+double smallDeltaIZofU(double *rowMajor, int i, int z, int Nt,int Kdim){
+	//returns d_(i,z) of (u), but we don't need u
+	double sum = 0;
+	double *columnI = &(rowMajor[i*Kdim]);
+	double *columnZ = &(rowMajor[z*Kdim]);
+	//do manually rather than BLAS since we only want top Nt values, despite having dim values per column
+	for(int j=0; j<Nt; j++){
+		sum += columnI[j]*columnZ[j];
 	}
+	return sum;
+}
+double getHessianIZofU(double *rowMajor, int i, int z, int Nt,int Kdim,double *Beta, double Alpha){
+	//pass in Betas/alpha arrays already computed for given U
+	double toret = smallDeltaIZofU(rowMajor, i, z, Nt,Kdim) / Alpha;
+	toret = toret - (Beta[i] * Beta[z])/pow(Alpha,3);
+	return toret;
+}
+double getTrace(double *rowMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
+	//pass in Betas/alpha arrays already computed for given U
+	double sum=0;
+	for (int i=0;i<Np;i++){
+		sum += getHessianIZofU(rowMajor, i, i, Nt, Kdim, Beta, Alpha);
+	}
+	return sum;
+}
+double getDeltaStep(double *rowMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
+	//pass in Betas/alpha arrays already computed for given U
+	return 1/sqrt( getTrace(rowMajor, Nt, Np, Kdim, Beta, Alpha) );
+}
+
+void calcGrad(double *gradient, double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim, double *Beta, double Alpha){
+	//Gradient of the Phi objective function at the point u
+	for (int i=0;i<Np;i++){
+		if (u[i] > 0)
+			gradient[i] = 1 + Beta[i]/Alpha;
+		else
+			gradient[i] = -1 + Beta[i]/Alpha;
+	}
+}
+double getNorm(double *v,int dim){
+	//computes norm_2
+	double sum = 0;
+	for(int i=0;i<dim;i++){
+		sum += pow(v[i],2);
+	}
+	return sqrt(sum);
+}
+
+void updateUWithGrad(double *uIn, double *uOut, int Np, double *Gradient, int mSteps, double Delta_u){
+	// calculates u = u-(Grad(u)*mSteps*Delta_u);
+	for(int i=0;i<Np;i++){
+		uOut[i] = uIn[i] - Gradient[i] * mSteps * Delta_u;
+	}
+}
+double Obj(double *u, int mSteps,int Np, double *Gradient, double Delta_u,double *cMajor,double *rMajor,double *output, int Nt,int Kdim){
+	// returns { Phi( u-(Grad(u)*m*Delta_u) ) }
+	// create newU so we don't destroy the previous U we've been passing around
+	double *newU = (double*)calloc(Np,sizeof(double));
+	memcpy(newU,u,Np*sizeof(double));
+	updateUWithGrad(u,newU,Np,Gradient,mSteps,Delta_u);
+	return phiOfU(newU,Np,cMajor,rMajor,output,Nt,Kdim);
+}
+//run l1 optimization
+void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+	//initial U vector gets passed in....
+	
+	//calculate Alpha/Beta for this u
+	double Alpha;
+	double *Beta = (double*) calloc(Np,sizeof(double));
+	getAlpha(&Alpha, u, Np,cMajor,rMajor,output,Nt,Kdim);
+	getBeta(Beta,u, Np, cMajor,rMajor,output,Nt,Kdim);
+		
+		
+	double *Gradient = (double*) calloc(Np,sizeof(double));
+	calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
+	
+	double Delta_u, m, mPlusOne;
+	while( getNorm( Gradient, Np ) > EPSILON ){ 
+		int mSteps = 0; 
+		
+		Delta_u = getDeltaStep(rMajor, Nt,Np, Kdim, Beta, Alpha); 
+		// m = Obj(u,mSteps,Delta_u);
+		m = Obj(u, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+		// mPlusOne = Obj(u,mSteps+1,Delta_u);
+		mPlusOne = Obj(u, mSteps+1,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+		while( m > mPlusOne ){
+			mSteps++; 
+			m = mPlusOne; //save previous computation to prev holder, reduce computation by half
+			// mPlusOne = Obj(u,mSteps,Delta_u); //is plus one, due to the mSteps++
+			mPlusOne = Obj(u, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+			//now mPlusOne is one mSteps ahead of m
+		}
+		// u = u-(Grad(u)*mSteps*Delta_u);
+		//Set uIn=uOut=u, since we want to overwrite the old u
+		updateUWithGrad(u,u, Np, Gradient, mSteps, Delta_u);
+		
+		//recompute Alpha/Beta for this new u		
+		getAlpha(&Alpha, u, Np,cMajor,rMajor,output,Nt,Kdim);
+		getBeta(Beta,u, Np, cMajor,rMajor,output,Nt,Kdim);
+		
+		// Calculate Gradient for next timestep with next u
+		calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
+	} 
+	//now u == u*
+	
 	// u holds the optimal u
 	free(Beta);
 	free(Gradient);
@@ -481,11 +540,9 @@ int paramInd(unsigned int *order,int ind){
 
 int main( int argc, char **argv ){ 
 
-	
+	// for timing purposes
     double simulation_time = read_timer( );
 	
-	
-
 	if( find_option( argc, argv, "-h" ) >= 0 ){
 		printUsage();
         return 0;
@@ -564,9 +621,6 @@ int main( int argc, char **argv ){
 	//Check that all cores got them. Correct.
 	// printf("R:%d numInputPoints:%d, dimension:%d\n",rank,numInputPoints,dimension);
 	
-	// if (rank==0){
-		// printf("Halfway done reading files:\t%f\n",read_timer( )-simulation_time);
-	// }
 	//Make space for the input data
 	double *input = (double*) calloc(dimension*numInputPoints,sizeof(double));
 	if (input == NULL){
@@ -617,7 +671,7 @@ int main( int argc, char **argv ){
 		}
 		
 		// printf("R:%d G:%d(%f) L:%d P:%d(%f,%f,%f)\n",rank,numGaussian,gaussianParam[0],numLinear,
-	// numPoly,polyC1[0],polyC2[0],polyD[0]);
+		// numPoly,polyC1[0],polyC2[0],polyD[0]);
 		fclose(fi);
 		
 		free(temp);
@@ -631,10 +685,7 @@ int main( int argc, char **argv ){
 	MPI_Bcast(polyD,numPoly,MPI_DOUBLE,0,MPI_COMM_WORLD);
 	
 	unsigned int numKernels = numGaussian+numLinear+numPoly;
-	// unsigned int fatKColumns = maxDim*numKernels;
-	// printf("R:%d G:%d(%f) L:%d P:%d(%f,%f,%f)\n",rank,numGaussian,gaussianParam[0],numLinear,
-	// numPoly,polyC1[0],polyC2[0],polyD[0]);
-	
+		
 	// MPI_Barrier(MPI_COMM_WORLD);
 	// return 0;
 	
@@ -642,6 +693,7 @@ int main( int argc, char **argv ){
 		printf("Set up time:\t%f\n",read_timer( )-simulation_time);
 	}
 	
+	//Create the same ordering of kernels on all procs (so all procs know who's doing what)
 	unsigned int kernAss[numKernels];
 	for(unsigned int i=0;i<numGaussian;i++){
 		kernAss[i] = 0;
@@ -653,7 +705,7 @@ int main( int argc, char **argv ){
 		kernAss[i+numGaussian+numLinear] = 2;
 	}
 	//get kernels for this rank to compute...
-	//shuffle the job order
+	//shuffle the job order, same seed on all procs. Load balances the kernels
 	srand(n_proc);
 	unsigned int t,j;
 	for(unsigned int i=0;i<numKernels-1;i++){
@@ -675,6 +727,7 @@ int main( int argc, char **argv ){
 	double *workSpace = (double*)calloc(procWorkSize[rank],sizeof(double));
 	int workedSoFar = 0;
 	int paramIndex;
+	// each proc does own kernels
 	for(unsigned int i=rank;i<numKernels;i+=n_proc){
 		paramIndex = paramInd(kernAss,i);
 		if(kernAss[i] == 0){
@@ -692,11 +745,11 @@ int main( int argc, char **argv ){
 // printf("R:%d workLen:%d proc todo:%d done:%d sending #s:%d at offset:%d\n",
 // rank,procWorkSize[rank],procWorkSize[rank]/maxDimTotalLength,workedSoFar,workedSoFar*maxDimTotalLength,recvOffset[rank]);
 	
-	double *fatKColumnMajor,*fatKRowMajor;//,*Ktraining;
-	// if(rank==0){
-		fatKColumnMajor = (double*)calloc(maxDimTotalLength*numKernels,sizeof(double));
-		fatKRowMajor = (double*)calloc(maxDimTotalLength*numKernels,sizeof(double));
-	// }
+	double *fatKColumnMajor,*fatKRowMajor;
+	//every proc get the fatK info
+	fatKColumnMajor = (double*)calloc(maxDimTotalLength*numKernels,sizeof(double));
+	fatKRowMajor = (double*)calloc(maxDimTotalLength*numKernels,sizeof(double));
+	
 	
 	if (rank==0){
 		printf("Calculation time:\t%f\n",read_timer( )-simulation_time);
@@ -712,7 +765,6 @@ int main( int argc, char **argv ){
 	if (rank==0){
 		printf("Gather time:\t%f\n",read_timer( )-simulation_time);
 	}
-	
 	
 	free(workSpace);
 	
@@ -732,116 +784,113 @@ int main( int argc, char **argv ){
 	if (rank==0){
 		printf("reformat fatKColumnMajor:\t%f\n",read_timer( )-simulation_time);
 	}
-	// if (rank==2){
-		// printf("\nRank:%d fatK:\n",rank);
-		// printMat(fatKColumnMajor,maxDim,maxDim*numKernels);
-		// printf("\n\n");
-
-		// printf("\nRank:%d fatKRowMajor:\n",rank);
-		// printMat(fatKRowMajor,maxDim*numKernels,maxDim);
-		// printf("\n\n");
-	// }
 	
 	
-	//Calculate own starting location...
-	double *U = (double*) calloc (numKernels*maxDim,sizeof(double));
-	for(int i=0;i<numKernels*maxDim;i++){
-		U[i] = rand();
-	}
 	// have each slave proc calculate and send back result
+	double *U = (double*) calloc (numKernels*maxDim,sizeof(double));
 	if (rank != 0){
+		//Calculate own starting location...
+		srand(rank); //unique seed for each proc, same seed=same starting locations...
+		for(int i=0;i<numKernels*maxDim;i++){
+			//Begin with random starting location
+			U[i] = rand();
+		}
 		//optimize L1
 		calcL1(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
 		// now U holds the optimal u
 		MPI_Send( U, numKernels*maxDim, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD );
 	}else{
-		MPI_Request result;
-		for(int i=1;i<n_proc;i++){
-			MPI_Irecv( U,numKernels*maxDim, MPI_DOUBLE, i, L1RESULT , MPI_COMM_WORLD, &result );
-		}
 		
-		//now wait for a result to be returned.
-		MPI_Status status;
-		MPI_Wait(&result,&status);
+		//working on implementing an efficient "get the first response" algorithm
 		
-		double vStar = 0;
-		double *KtU = (double*) calloc(rowsInTraining,sizeof(double));
-		//matrix*vector to calculate right hand side, once only
-		dgemv('N',rowsInTraining,numKernels*maxDim,1.0,fatKRowMajor,rowsInTraining,U,1,1.0,KtU,1);
-		for(int i=0;i<rowsInTraining;i++){
-			// KtU[i] = output[i]-KtU[i];
-			vStar += pow(output[i]-KtU[i],2);
-		}
-		vStar = pow(sqrt(vStar),2);
+		//Assume U now holds the optimal answer from some proc
 		double phiStar = phiOfU(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
+		//get vStar
+		double vStar;
+		getAlpha(&vStar,U, numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
+		//get muStar
 		double muStar = vStar/phiStar;
 		
-		// build eigenvalues
-		double *Lambdas = (double*) calloc(numKernels*maxDim,sizeof(double));
-		for(int i=0;i<numKernels*maxDim;i++){
-			Lambdas[i] = abs(U[i])/phiStar;
-		}
 		
-		double *KStar = (double*) calloc(maxDimTotalLength,sizeof(double));
 		
-		for(int i=0;i<numKernels*maxDim;i++){
-			double *KColumn = fatKColumnMajor+i*maxDim;
-			// multiply EV*Trans(EV) and scale it by Lambdas[i]
-			// by putting KStar as C parameter, we add the product to it each time.
-			// alpha*op( A )*op( B ) + beta*C
-			dgemm('N','T',maxDim,maxDim,1,Lambdas[i],KColumn,maxDim,KColumn,maxDim,1.0,KStar,maxDim);
-		}
-		
-		// form ktraining
-		double *KTraining = (double*) calloc(rowsInTraining*rowsInTraining,sizeof(double));
-		double *KTrainingTemp = (double*) calloc(rowsInTraining*rowsInTraining,sizeof(double));
-		for(int i=0;i<rowsInTraining;i++){
-			for(int j=0;j<rowsInTraining;j++){
-				KTraining[i+j*rowsInTraining] = KStar[i+j*maxDim];
-				KTrainingTemp[i+j*rowsInTraining] = KTrainingTemp[i+j*maxDim];
-			}
-		}
-		// add muStar to KTraining
-		for(int i=0;i<rowsInTraining;i++){
-			KTraining[i+i*rowsInTraining] += muStar;
-			KTrainingTemp[i+i*rowsInTraining] += muStar;
-		}
-		// KTraining is now formed
-		
-		// form X*, of size (N-Nt)xNt
-		double *XStar = (double*) calloc((maxDim-rowsInTraining)*(rowsInTraining),sizeof(double));
-		for(int i=rowsInTraining;i<maxDim;i++){
-			for(int j=0;j<rowsInTraining;j++){
-				XStar[i+j*(maxDim-rowsInTraining)] = KStar[i+j*maxDim];
+		//build KStar
+		double *KStar = (double*)calloc(maxDim*maxDim,sizeof(double));
+		double *currentColumn;
+		for(int j=0;j<numKernels*maxDim;j++){
+			//iterate through each column of K, each eigenvector
+			currentColumn = &(fatKColumnMajor[j]);
+			double thisLambda = abs(U[j])/phiStar;
+			//multiply column* Trans(column) to get square matrix
+			//since we're summing matrices, can simply sum each element at a given location for the matrix?
+			for(int x=0;x<maxDim;x++){
+				for(int y=0;y<maxDim;y++){
+					KStar[y+x*maxDim] += currentColumn[x]*currentColumn[y]*thisLambda;
+				}
 			}
 		}
 		
-		// form a*, KTraining <- inv(KTraining)
-		// get pivot information
+		// Now KStar is built
+		
+		double *KTrainingStar = (double*) calloc(rowsInTraining*rowsInTraining, sizeof(double));
+		//copy gets trashed by dgetrf()
+		double *KTrainingStarCopy = (double*) calloc(rowsInTraining*rowsInTraining, sizeof(double));
+		for(int i=0;i<rowsInTraining;i++){
+			for(int j=0;j<rowsInTraining;j++){
+				if (i==j){
+					//diagonal
+					KTrainingStar[j+i*rowsInTraining] += muStar;
+				}
+				KTrainingStar[j+i*rowsInTraining] += KStar[j+i*maxDim]; //limit by maxDim since KStar is NxN
+				KTrainingStarCopy[j+i*rowsInTraining] = KTrainingStar[j+i*rowsInTraining];
+			}
+		}
+		// KTrainingStar is built
+		int rowsInTest = maxDim - rowsInTraining;
+		double *XStar = (double*) calloc(rowsInTest*rowsInTraining, sizeof(double));
+		for(int i=0;i<rowsInTraining;i++){
+			for(int j=0;j<rowsInTest;j++){
+				//limit by maxDim since KStar is NxN
+				//add rowsInTraining to skip Nt section
+				XStar[j+i*rowsInTest] += KStar[j+rowsInTraining+i*maxDim]; 
+			}
+		}
+		//XStar is built
+		
 		int *pivotInfo = (int*)calloc(rowsInTraining,sizeof(int));
 		int success=0;
-		dgetrf( rowsInTraining, rowsInTraining, KTrainingTemp, rowsInTraining, pivotInfo, &success );
+		dgetrf( rowsInTraining, rowsInTraining, KTrainingStarCopy, rowsInTraining, pivotInfo, &success );
 		if (success != 0){
 			printf("DGETRF failed?\n");
+			exit(-1);
 		}
-		//Do the inverse computation, store in KTraining
-		dgetri( rowsInTraining,KTraining,rowsInTraining,pivotInfo,&success);
+		double *KTrainingStarInverse = KTrainingStar; //for naming ease
+		//Do the inverse computation, store in KTrainingStar
+		dgetri( rowsInTraining,KTrainingStarInverse,rowsInTraining,pivotInfo,&success);
 		if (success != 0){
 			printf("DGETRI failed?\n");
+			exit(-1);
 		}
-		double *aStar = (double*)calloc(rowsInTraining,sizeof(double));
-		dgemv('N',rowsInTraining,rowsInTraining,1.0,KTraining,rowsInTraining,output,1,1.0,aStar,1);
 		
-		// actually do estimation
-		double *estimate = (double*)calloc(maxDim-rowsInTraining,sizeof(double));
-		dgemv('N',maxDim-rowsInTraining,rowsInTraining,1.0,XStar,maxDim-rowsInTraining,aStar,1,1.0,estimate,1);
+		double *alphaStars = (double*) calloc(rowsInTraining,sizeof(double));
+		//compute KTrainingStarInverse * OutputTrainingTranspose
+		dgemv('N',rowsInTraining,rowsInTraining,1.0,KTrainingStarInverse,rowsInTraining,
+					output,1,1.0,alphaStars,1);
 		
-		// printf("Estimates:\n");
-		// for(int i=0;i<maxDim-rowsInTraining;i++){
-			// printf("%f ",estimate[i]);
-		// }
-		// printf("\n");
+		double *estimates = (double*)calloc(rowsInTest,sizeof(double));
+		dgemv('N',rowsInTest,rowsInTraining,1.0,XStar,rowsInTest,
+					estimates,1,1.0,estimates,1);
 		
+		printf("Estimates: \n");
+		printMat(estimates,rowsInTest,1);
+		printf("\n\n");
+		
+		free(KStar);
+		free(KTrainingStar);
+		free(KTrainingStarCopy);
+		free(XStar);
+		free(pivotInfo);
+		free(alphaStars);
+		free(estimates);
 	}
 	
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -856,14 +905,12 @@ int main( int argc, char **argv ){
     }
 	
 	//Free all calloc'ed space
-	// if (rank == 0){
-		free(fatKColumnMajor);
-		free(fatKRowMajor);
-	// }
+	free(U);
+	free(fatKColumnMajor);
+	free(fatKRowMajor);
 	free(input);
 	free(output);
-	// free(Ktraining);
-	//For testing purposes, have all cores finish together
+	//Necessary for actual completion...
 	MPI_Barrier(MPI_COMM_WORLD);
 	
 	// printf("R:%d Finishing application\n",rank);
