@@ -7,12 +7,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import core.*;
 
 /**
  *
@@ -36,6 +33,18 @@ public class DataSet {
         this.output = new Matrix(SampleData.outputs);
     }
 
+    /**
+     * Create a dataset from the database
+     * @param dataFilePath
+     * @param url
+     * @param user
+     * @param password
+     * @param date_begin
+     * @param date_end
+     * @throws SQLException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
     public DataSet(String dataFilePath, String url, String user, String password, String date_begin, String date_end) throws SQLException, FileNotFoundException, IOException {
         Database db = new Database(url, user, password);
         File f = new File(dataFilePath);
@@ -71,6 +80,8 @@ public class DataSet {
         this.input = this.input.getMatrix(0, 1, 0, size - 1);
         this.output = this.output.getMatrix(0, 0, 0, size - 1);
     }
+
+    
 
     private double findTT(String dataFilePath, long date) throws FileNotFoundException, IOException {
         double result = -1.0;
