@@ -472,42 +472,55 @@ void updateUWithGrad(double *uIn, double *uOut, int Np, double *Gradient, int mS
 		uOut[i] = uIn[i] - Gradient[i] * mSteps * Delta_u;
 	}
 }
-double Obj(double *u, int mSteps,int Np, double *Gradient, double Delta_u,double *cMajor,double *rMajor,double *output, int Nt,int Kdim){
+double Obj(double *u,double *newUSpace, int mSteps,int Np, double *Gradient, double Delta_u,double *cMajor,double *rMajor,double *output, int Nt,int Kdim){
 	// returns { Phi( u-(Grad(u)*m*Delta_u) ) }
-	// create newU so we don't destroy the previous U we've been passing around
-	double *newU = (double*)calloc(Np,sizeof(double));
-	memcpy(newU,u,Np*sizeof(double));
-	updateUWithGrad(u,newU,Np,Gradient,mSteps,Delta_u);
-	return phiOfU(newU,Np,cMajor,rMajor,output,Nt,Kdim);
+	memcpy(newUSpace,u,Np*sizeof(double));
+	updateUWithGrad(newUSpace,u,Np,Gradient,mSteps,Delta_u);
+	return phiOfU(u,Np,cMajor,rMajor,output,Nt,Kdim);
 }
 //run l1 optimization
 void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+	double inTime = read_timer( );
 	//initial U vector gets passed in....
+	//workspace
+	// create newU so we don't destroy the previous U we've been passing around
+	double *newU = (double*)calloc(Np,sizeof(double));
 	
 	//calculate Alpha/Beta for this u
 	double Alpha;
 	double *Beta = (double*) calloc(Np,sizeof(double));
 	getAlpha(&Alpha, u, Np,cMajor,rMajor,output,Nt,Kdim);
 	getBeta(Beta,u, Np, cMajor,rMajor,output,Nt,Kdim);
-		
+	
 		
 	double *Gradient = (double*) calloc(Np,sizeof(double));
 	calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
-	
 	double Delta_u, m, mPlusOne;
+	int loops = 0;
 	while( getNorm( Gradient, Np ) > EPSILON ){ 
+		if (loops++ % 10000){
+			printf("Loops: %d: %f\n",loops,read_timer( )-inTime);
+		}
+		printf("u:\n");
+		printMat(u,1,Np);
+		printf("Grad:\n");
+		printMat(Gradient,1,Np);
+		printf("Alpha: %f\n",Alpha);
+		printf("Beta:\n");
+		printMat(Beta,1,Np);
+		
 		int mSteps = 0; 
 		
 		Delta_u = getDeltaStep(rMajor, Nt,Np, Kdim, Beta, Alpha); 
 		// m = Obj(u,mSteps,Delta_u);
-		m = Obj(u, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+		m = Obj(u,newU, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 		// mPlusOne = Obj(u,mSteps+1,Delta_u);
-		mPlusOne = Obj(u, mSteps+1,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+		mPlusOne = Obj(u,newU, mSteps+1,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 		while( m > mPlusOne ){
 			mSteps++; 
 			m = mPlusOne; //save previous computation to prev holder, reduce computation by half
 			// mPlusOne = Obj(u,mSteps,Delta_u); //is plus one, due to the mSteps++
-			mPlusOne = Obj(u, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
+			mPlusOne = Obj(u,newU, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 			//now mPlusOne is one mSteps ahead of m
 		}
 		// u = u-(Grad(u)*mSteps*Delta_u);
@@ -520,12 +533,15 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 		
 		// Calculate Gradient for next timestep with next u
 		calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
+		
+		if (loops > 10)
+			break;
 	} 
 	//now u == u*
-	
 	// u holds the optimal u
 	free(Beta);
 	free(Gradient);
+	free(newU);
 	return;
 }
 //get parameter index for a given kernel
@@ -786,24 +802,52 @@ int main( int argc, char **argv ){
 	}
 	
 	
+	int Np = numKernels*maxDim;
 	// have each slave proc calculate and send back result
-	double *U = (double*) calloc (numKernels*maxDim,sizeof(double));
+	double *U = (double*) calloc (Np,sizeof(double));
 	if (rank != 0){
 		//Calculate own starting location...
 		srand(rank); //unique seed for each proc, same seed=same starting locations...
-		for(int i=0;i<numKernels*maxDim;i++){
+		for(int i=0;i<Np;i++){
 			//Begin with random starting location
-			U[i] = rand();
+			U[i] = 0.1;//rand()%10000;
 		}
 		//optimize L1
-		calcL1(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
+		calcL1(U,Np,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
 		// now U holds the optimal u
-		MPI_Send( U, numKernels*maxDim, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD );
+		MPI_Send( U, Np, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD );
 	}else{
 		
 		//working on implementing an efficient "get the first response" algorithm
 		
+		//holds numProcs-1 sets of Us
+		double *holder = (double*) calloc ((n_proc-1)*(Np),sizeof(double));
+		MPI_Request *requests = (MPI_Request*) calloc (n_proc-1,sizeof(MPI_Request));
+		for(int i=0;i<(n_proc-1);i++){
+			//set up nonblocking recvs...
+			MPI_Irecv(holder+i*Np, Np, MPI_DOUBLE, i+1, L1RESULT, MPI_COMM_WORLD, &(requests[i]) );
+		}
+		int c = 0;
+		int flag = 0;
+		// printf("checking c:%d\n",c);
+		MPI_Request_get_status(requests[c], &flag, MPI_STATUS_IGNORE);
+		unsigned int iter=0;
+		while (flag == 0){
+			iter++;
+			// c++;
+			// if (c >= n_proc-1)
+				// c = 0;
+			c = c++ % (n_proc-1);
+			// printf("checking c:%d\n",c);
+			MPI_Request_get_status(requests[c], &flag, MPI_STATUS_IGNORE);
+		}
+		//c now is index to the first received U
+		// printf("First index: %d after %u iters\n",c+1,iter);
+		
 		//Assume U now holds the optimal answer from some proc
+		memcpy(U, &(holder[c]),Np*sizeof(double));
+		// printMat(U,Np,1);
+		/*
 		double phiStar = phiOfU(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
 		//get vStar
 		double vStar;
@@ -891,8 +935,9 @@ int main( int argc, char **argv ){
 		free(pivotInfo);
 		free(alphaStars);
 		free(estimates);
+		*/
 	}
-	
+	fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
     if( rank == 0 ){
         printf("input:%dx%d n_procs = %d, simulation time = %g s\n", dimension,numInputPoints, n_proc, read_timer( )-simulation_time );
