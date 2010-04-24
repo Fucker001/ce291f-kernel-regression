@@ -11,13 +11,42 @@ I=[];
 csvwrite('inputs.txt',I)
 csvwrite('outputs.txt',O)
 O=zeros(1,n1);
-I=zeros(2,n1);
+I=zeros(4,n1);
 for i=1:n1
-    I(1,i)=i;
-    I(2,i)=i+2;
-    I(3,i)=5*i;
-    I(4,i)=-i;
-    O(i)=3*i-4;
+    I(1,i)=(i-1)/n1; %time of day from 0 to 1.
+    %     I(2,i)=i;
+    %     I(3,i)=5*i;
+    %     I(4,i)=-i;
+    if i < 0.25*n1
+        O(1,i) = 0.1;
+    elseif i < 0.375*n1
+        O(1,i) = 0.7;
+    elseif i < 0.625*n1
+        O(1,i) = 0.3;
+    elseif i < 0.75*n1
+        O(1,i) = 0.7;
+    else
+        O(1,i) = 0.1;
+    end
+end
+Parameters = csvread('parameters.txt',2,1);
+ShareOfTrainingSet = Parameters(1,1);
+if ShareOfTrainingSet >= 0.5
+    step = floor(1/(1-ShareOfTrainingSet));
+    Iend = I(:,1:step:end);
+    I(:,1:step:end) = [];
+    I = [I Iend];
+    Oend = O(1,1:step:end);
+    O(:,1:step:end) = [];
+    O = [O Oend];
+else
+    step = floor(1/ShareOfTrainingSet);
+    Istart = I(:,1:step:end);
+    I(:,1:step:end) = [];
+    I = [Istart I];
+    Ostart = O(1,1:step:end);
+    O(:,1:step:end) = [];
+    O = [Ostart O];
 end
 csvwrite('inputs.txt',I)
 csvwrite('outputs.txt',O)
