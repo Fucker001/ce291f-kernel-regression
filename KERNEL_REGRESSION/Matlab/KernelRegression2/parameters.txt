@@ -1,9 +1,7 @@
-This is the parameter file,
+Parameter file,
 ,
-Share of training set,0.5
+Training set,0.5
 Rho,0.01
-Linear Kernel,1
-Gaussian Kernel,0.0001,0.001,0.01,0.1,1,10,100,1000
-Poly kernel,1,1,2
-Poly kernel,2,3,3
-Poly kernel,6,5,4
+LinKer,
+Gaus Ker,100
+Poly param,

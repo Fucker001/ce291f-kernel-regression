@@ -4,8 +4,8 @@ function [Inputs,Outputs,ShareOfTrainingSet,Rho,BoolLinKer,Sigmas,PolyParameters
 
 global NumberOfPoints
 %% Inputs and Ouputs
-Inputs = csvread('inputs.txt');
-Outputs = csvread('outputs.txt');
+Inputs = csvread('input.txt');
+Outputs = csvread('output.txt');
 NumberOfPoints = size(Inputs,2);
 %% Parameters
 
