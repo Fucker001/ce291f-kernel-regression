@@ -1,0 +1,4 @@
+in = csvread('inputs.txt');
+out= csvread('outputs.txt');
+
+surf(in(1,:), in(2,:), out(1,:));
