@@ -1,11 +1,5 @@
-%% distribs (for having a better shape)
-X=[0:0.01:1];
-Y=1+5*normpdf(X,0.3,0.04)+10*normpdf(X,0.7,0.10);
-figure
-plot(X,Y);
 
-
-%% Get the actual dataset, shape it, and plot it, write it down in csv.
+%% (INIT 1) Get the actual dataset, shape it, and plot it, write it down in csv.
 
 % input.txt and output.txt have the input actual dataset.
 in = csvread('input.txt');
@@ -33,7 +27,7 @@ axis square
 csvwrite('good_dataset_input.txt',in);
 csvwrite('good_dataset_output.txt', z);
 
-%% filter to get a sub-dataset (smaller), and plot it, save it.
+%% (INIT 2) filter to get a sub-dataset (smaller), and plot it, save it.
 x1f=[];
 x2f=[];
 x3f=[];
@@ -43,7 +37,7 @@ max=size(x1,2);
 counter=0;
 for i=1:max
     counter = counter + 1;
-    if counter>2
+    if counter>9
        x1f=[x1f x1(i)];
        x2f=[x2f x2(i)];
        x3f=[x3f x3(i)];
@@ -83,12 +77,13 @@ grid on
 axis square
 
 %% Kernel Regression, and plot of the results
-[Error,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet] = kernelRegression();
+[Error,AggregatedError,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet] = kernelRegression();
 total=size(x1f,2);
+est_size=size(Estimate,2);
 train=floor(total*ShareOfTrainingSet);
-err=sum(Error)/size(Error,2);
-disp 'Error:';
-disp(err);
+disp 'Error on all points:';disp(AggregatedError(1));
+disp 'Error on training:';disp(AggregatedError(2));
+disp 'Error on test:';disp(AggregatedError(3));
 
 figure
 %Red: Training set
@@ -98,7 +93,7 @@ hold on
 scatter3(inf(1,train+1:total),inf(3,train+1:total),zf(1,train+1:total),'g', 'filled');
 hold on
 %Blue: Test set, Estimated values
-scatter3(inf(1,train+1:total),inf(3,train+1:total),Estimate,'b', 'filled');
+scatter3(inf(1,total-est_size+1:total),inf(3,total-est_size+1:total),Estimate,'b', 'filled');
 axis([0 1 0 1 0 1000]);
 xlabel('time in the day');
 ylabel('Weather status');
@@ -126,8 +121,8 @@ figure
 scatter3(inf(1,1:train),inf(3,1:train),zf(1:train),'r', 'filled');
 hold on
 %Green: Test set, Actual values
-scatter3(inf(1,train+1:total),inf(3,train+1:total),zf(1,train+1:total),'g', 'filled');
-hold on
+% scatter3(inf(1,train+1:total),inf(3,train+1:total),zf(1,train+1:total),'g', 'filled');
+% hold on
 %Blue: Test set, Estimated values
 scatter3(inf(1,train+1:total),inf(3,train+1:total),Estimate,'b', 'filled');
 axis([0 1 0 1 0 1000]);
@@ -136,6 +131,47 @@ ylabel('Weather status');
 zlabel('travel time (s)')
 grid on
 axis square
+
+%% Calculate aggregated error for training and test set depending on share of training set.
+iterations=30;
+results=zeros(5,1);
+for i=1:iterations
+    [Error,AggregatedError,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet]...
+        = kernelRegression(i/iterations,0.01);
+    results=[results AggregatedError];
+end
+results=results(:,2:size(results,2));
+
+%% Plot aggregated error on share of training set
+figure
+plot(results(1,:),results(3,:),'r');
+hold on
+plot(results(1,:),results(4,:),'g');
+xlabel('Share of training data');
+ylabel('Total error (%)');
+h = legend('Error on the training set','Error on the test set',2);
+set(h,'Interpreter','none')
+
+%% Calculate aggregated error for training and test set depending on rho.
+span=0.7;
+divide=100;
+results=zeros(5,1);
+for i=0.01:span/divide:span
+    [Error,AggregatedError,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet]...
+        = kernelRegression(0.2,i);
+    results=[results AggregatedError];
+end
+results=results(:,2:size(results,2));
+
+%% Plot aggregated error on rho
+figure
+plot(results(5,:),results(3,:),'r');
+hold on
+plot(results(5,:),results(4,:),'g');
+xlabel('Weight of normalization against over-fitting');
+ylabel('Total error (%)');
+h = legend('Error on the training set','Error on the test set',2);
+set(h,'Interpreter','none')
 
 
 %% filter

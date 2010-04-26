@@ -1,6 +1,6 @@
 Parameter file,
 ,
-Training set,0.1
+Training set,0.5
 Rho,0.01
 LinKer,1
 Gaus Ker,0.1
