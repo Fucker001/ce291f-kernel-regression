@@ -505,6 +505,7 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 		printMat(u,1,Np);
 		printf("Grad:\n");
 		printMat(Gradient,1,Np);
+		printf("phi: %f\n",phiOfU(u,Np, cMajor, rMajor, output, Nt, Kdim));
 		printf("Alpha: %f\n",Alpha);
 		printf("Beta:\n");
 		printMat(Beta,1,Np);
