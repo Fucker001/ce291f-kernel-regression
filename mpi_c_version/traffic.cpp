@@ -376,14 +376,32 @@ void parseKernelInit( char *record, char *delim, int *numG, int *numL, int *numP
 		p=strtok('\0',delim);
 	}
 }
-
-void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
-	double *KtU = (double*) calloc(Nt,sizeof(double));
-	//matrix*vector to calculate right hand side, once only
-	dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
+void getOTminusKtU(double *KtU,double *u, int Nt, int Np,double *rMajor, double *output, int Kdim ){
+	// dgemv('N',Nt,Np,1.0,cMajor,Nt,u,1,1.0,KtU,1);
+	for(int i=0;i<Nt;i++){
+		for(int j=0;j<Np;j++){
+			KtU[i] += rMajor[j+i*Kdim]*u[j];
+		}
+	}
 	for(int i=0;i<Nt;i++){
 		KtU[i] = output[i]-KtU[i];
 	}
+}
+void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+	//tested correct
+	double *KtU = (double*) calloc(Nt,sizeof(double));
+	//matrix*vector to calculate right hand side, once only
+	
+	// printf("U before comp:\n");
+	// printMat(u,1,Np);
+	// printf("output:\n");
+	// printMat(output,1,Np);
+	
+	getOTminusKtU(KtU, u,Nt, Np, rMajor, output, Kdim );
+	
+	// printf("KtU after output-:\n");
+	// printMat(KtU,1,Nt);
+	
 	// KtU is now the right hand side. 
 	// maybe throw in a dgemv since it's vector matrix?
 	for(int i=0;i<Np;i++){
@@ -396,13 +414,21 @@ void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double
 	free(KtU);
 }
 void getAlpha(double *Alpha,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+	//tested correct...
 	double *KtU = (double*) calloc(Nt,sizeof(double));
 	//matrix*vector to calculate right hand side, once only
-	dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
+	// dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
+	
+	getOTminusKtU(KtU, u,Nt, Np, rMajor,output, Kdim );
+	
+	// printf("KtU after output-:\n");
+	// printMat(KtU,1,Nt);
+	
 	double temp=0;
 	for(int i=0;i<Nt;i++){
 		// KtU[i] = output[i]-KtU[i];
-		temp += pow(output[i]-KtU[i],2);
+		temp += pow(KtU[i],2);
+		// printf("KtUL%f, sq()=%f, temp: %f\n",KtU[i],pow(KtU[i],2),temp);
 	}
 	*Alpha = sqrt(temp);
 	free(KtU);
@@ -418,34 +444,34 @@ double phiOfU(double *U,int Np,double *cMajor,double *rMajor,double *output,int 
 	return uNorm + rightHandSide;
 }
 
-double smallDeltaIZofU(double *rowMajor, int i, int z, int Nt,int Kdim){
+double smallDeltaIZofU(double *cMajor, int i, int z, int Nt,int Kdim){
 	//returns d_(i,z) of (u), but we don't need u
 	double sum = 0;
-	double *columnI = &(rowMajor[i*Kdim]);
-	double *columnZ = &(rowMajor[z*Kdim]);
+	double *columnI = &(cMajor[i*Kdim]);
+	double *columnZ = &(cMajor[z*Kdim]);
 	//do manually rather than BLAS since we only want top Nt values, despite having dim values per column
 	for(int j=0; j<Nt; j++){
 		sum += columnI[j]*columnZ[j];
 	}
 	return sum;
 }
-double getHessianIZofU(double *rowMajor, int i, int z, int Nt,int Kdim,double *Beta, double Alpha){
+double getHessianIZofU(double *cMajor, int i, int z, int Nt,int Kdim,double *Beta, double Alpha){
 	//pass in Betas/alpha arrays already computed for given U
-	double toret = smallDeltaIZofU(rowMajor, i, z, Nt,Kdim) / Alpha;
+	double toret = smallDeltaIZofU(cMajor, i, z, Nt,Kdim) / Alpha;
 	toret = toret - (Beta[i] * Beta[z])/pow(Alpha,3);
 	return toret;
 }
-double getTrace(double *rowMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
+double getTrace(double *cMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
 	//pass in Betas/alpha arrays already computed for given U
 	double sum=0;
 	for (int i=0;i<Np;i++){
-		sum += getHessianIZofU(rowMajor, i, i, Nt, Kdim, Beta, Alpha);
+		sum += getHessianIZofU(cMajor, i, i, Nt, Kdim, Beta, Alpha);
 	}
 	return sum;
 }
-double getDeltaStep(double *rowMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
+double getDeltaStep(double *cMajor, int Nt,int Np, int Kdim, double *Beta, double Alpha){
 	//pass in Betas/alpha arrays already computed for given U
-	return 1/sqrt( getTrace(rowMajor, Nt, Np, Kdim, Beta, Alpha) );
+	return 1/sqrt( getTrace(cMajor, Nt, Np, Kdim, Beta, Alpha) );
 }
 
 void calcGrad(double *gradient, double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int dim, double *Beta, double Alpha){
@@ -498,9 +524,9 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 	double Delta_u, m, mPlusOne;
 	int loops = 0;
 	while( getNorm( Gradient, Np ) > EPSILON ){ 
-		if (loops++ % 10000){
-			printf("Loops: %d: %f\n",loops,read_timer( )-inTime);
-		}
+		// if (loops++ % 10000){
+			printf("Loops: %d: %f\n",loops++,read_timer( )-inTime);
+		// }
 		printf("u:\n");
 		printMat(u,1,Np);
 		printf("Grad:\n");
@@ -512,7 +538,7 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 		
 		int mSteps = 0; 
 		
-		Delta_u = getDeltaStep(rMajor, Nt,Np, Kdim, Beta, Alpha); 
+		Delta_u = getDeltaStep(cMajor, Nt,Np, Kdim, Beta, Alpha); 
 		// m = Obj(u,mSteps,Delta_u);
 		m = Obj(u,newU, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 		// mPlusOne = Obj(u,mSteps+1,Delta_u);
@@ -701,6 +727,8 @@ int main( int argc, char **argv ){
 	MPI_Bcast(polyC2,numPoly,MPI_DOUBLE,0,MPI_COMM_WORLD);
 	MPI_Bcast(polyD,numPoly,MPI_DOUBLE,0,MPI_COMM_WORLD);
 	
+	MPI_Bcast(output,numInputPoints,MPI_DOUBLE,0,MPI_COMM_WORLD);
+	
 	unsigned int numKernels = numGaussian+numLinear+numPoly;
 		
 	// MPI_Barrier(MPI_COMM_WORLD);
@@ -799,6 +827,10 @@ int main( int argc, char **argv ){
 	}		
 		
 	if (rank==0){
+		printf("fatKRowMajor:\n");
+		printMat(fatKRowMajor,maxDim,maxDim*numKernels);
+		printf("fatKColumnMajor:\n");
+		printMat(fatKColumnMajor,maxDim,maxDim*numKernels);
 		printf("reformat fatKColumnMajor:\t%f\n",read_timer( )-simulation_time);
 	}
 	
@@ -814,6 +846,7 @@ int main( int argc, char **argv ){
 			U[i] = 0.1;//rand()%10000;
 		}
 		//optimize L1
+		
 		calcL1(U,Np,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
 		// now U holds the optimal u
 		MPI_Send( U, Np, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD );
@@ -825,7 +858,7 @@ int main( int argc, char **argv ){
 		double *holder = (double*) calloc ((n_proc-1)*(Np),sizeof(double));
 		MPI_Request *requests = (MPI_Request*) calloc (n_proc-1,sizeof(MPI_Request));
 		for(int i=0;i<(n_proc-1);i++){
-			//set up nonblocking recvs...
+			// set up nonblocking recvs...
 			MPI_Irecv(holder+i*Np, Np, MPI_DOUBLE, i+1, L1RESULT, MPI_COMM_WORLD, &(requests[i]) );
 		}
 		int c = 0;
