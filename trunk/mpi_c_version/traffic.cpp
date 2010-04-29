@@ -16,12 +16,16 @@
 
 //Constants for data sending
 #define L1RESULT 0
+#define CANCELALERT 1
+
 //for blocking in calculations
 #define BLOCKSIZE 32
 
 #define EPSILON 0.01
-
 #define RHO 0.01
+#define DIVISOR 0.1
+
+#define PRINTSTATEMENTS 1
 
 //
 //  timer
@@ -64,17 +68,6 @@ void calcSVD(double *in,double*out,unsigned int dim){
 	//DGESDD( JOBZ, M, N, A, LDA, S, U, LDU, VT, LDVT, WORK,LWORK, IWORK, INFO )
 	dgesdd('A',dim,dim,in,dim,S,U,dim,Vt,dim,&info);
 	
-	/*
-	
-	//ORIGINAL
-	//Multiply U*S^.5, store in out
-	for(unsigned int i=0;i<dim;i++){
-		for(unsigned int j=0;j<dim;j++){
-			out[j+i*dim] = sqrt(S[i])*U[j+i*dim];
-		}
-	}
-	*/
-	
 	//Blocked
 	int blockSize = min(BLOCKSIZE,(int)dim);
 	for(int y=0;y<((int)ceil(1.0*dim/blockSize));y++){
@@ -112,15 +105,6 @@ void calcPolyKernel(double *in, double *out, unsigned int iDim, unsigned int jDi
 		return;
 	}
 	//get in^T to form column-major...
-	/*
-		//original
-		
-	for(unsigned int i=0;i<iDim;i++){
-		for(unsigned int j=0;j<jDim;j++){
-			intermed2[i+j*iDim] = in[j+i*jDim];
-		}
-	}
-	*/
 	
 	//Blocked
 	int blockSize = min(BLOCKSIZE,(int)min(jDim,iDim));
@@ -176,14 +160,6 @@ void calcGaussKernel(double *in,double *out,unsigned int iDim, unsigned int jDim
 	double *intermed = (double*)calloc(maxDim*maxDim,sizeof(double));
 	double *intermed2 = (double*)calloc(maxDim*maxDim,sizeof(double));
 	
-	/* //original
-	//put array into column major
-	for(unsigned int i=0;i<iDim;i++){
-		for(unsigned int j=0;j<jDim;j++){
-			intermed2[i+j*iDim] = in[j+i*jDim];
-		}
-	}
-	*/
 	//Blocked
 	int blockSize = min(BLOCKSIZE,(int)min(jDim,iDim));
 	for(int y=0;y<((int)ceil(1.0*iDim/blockSize));y++){
@@ -314,7 +290,6 @@ void parse( char *record, char *delim, double *arr,int actuallyAre,int numInputP
 	double t;
 	unsigned int fld=0;
 	int offsetSelect = max(floor(actuallyAre / numInputPoints ),1.0);
-	// printf("Offset: %d\n",offsetSelect);
 	int c = 0;
     while(p){
 		c = 0;
@@ -337,7 +312,6 @@ P,c1,c2,d
 void parseKernel( char *record, char *delim, int *numG, int *numL, int *numP, double *sigma,double *c1,double *c2,double *d){
     char *p=strtok(record,delim);
 	double t;
-	// printf("__Found char: %c %s\n",p[0],p);
 	if (p[0]=='G'){
 		//gaussian input
 		p=strtok('\0',delim);
@@ -370,7 +344,6 @@ void parseKernel( char *record, char *delim, int *numG, int *numL, int *numP, do
 //only gets kernel counts so far
 void parseKernelInit( char *record, char *delim, int *numG, int *numL, int *numP){
     char *p=strtok(record,delim);
-	// printf("++Found char: %c %s\n",p[0],p);
 	if (p[0]=='G'){
 		//gaussian input
 		(*numG)++;
@@ -389,7 +362,6 @@ void parseKernelInit( char *record, char *delim, int *numG, int *numL, int *numP
 	}
 }
 void getOTminusKtU(double *KtU,double *u, int Nt, int Np,double *rMajor, double *output, int Kdim ){
-	// dgemv('N',Nt,Np,1.0,cMajor,Nt,u,1,1.0,KtU,1);
 	for(int i=0;i<Nt;i++){
 		for(int j=0;j<Np;j++){
 			KtU[i] += rMajor[j+i*Kdim]*u[j];
@@ -404,15 +376,7 @@ void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double
 	double *KtU = (double*) calloc(Nt,sizeof(double));
 	//matrix*vector to calculate right hand side, once only
 	
-	// printf("U before comp:\n");
-	// printMat(u,1,Np);
-	// printf("output:\n");
-	// printMat(output,1,Np);
-	
 	getOTminusKtU(KtU, u,Nt, Np, rMajor, output, Kdim );
-	
-	// printf("KtU after output-:\n");
-	// printMat(KtU,1,Nt);
 	
 	// KtU is now the right hand side. 
 	// maybe throw in a dgemv since it's vector matrix?
@@ -426,21 +390,14 @@ void getBeta(double *Beta,double *u, int Np,double *cMajor,double *rMajor,double
 	free(KtU);
 }
 void getAlpha(double *Alpha,double *u, int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
-	//tested correct...
 	double *KtU = (double*) calloc(Nt,sizeof(double));
 	//matrix*vector to calculate right hand side, once only
-	// dgemv('N',Nt,Np,1.0,rMajor,Nt,u,1,1.0,KtU,1);
-	
 	getOTminusKtU(KtU, u,Nt, Np, rMajor,output, Kdim );
-	
-	// printf("KtU after output-:\n");
-	// printMat(KtU,1,Nt);
 	
 	double temp=0;
 	for(int i=0;i<Nt;i++){
 		// KtU[i] = output[i]-KtU[i];
 		temp += pow(KtU[i],2);
-		// printf("KtUL%f, sq()=%f, temp: %f\n",KtU[i],pow(KtU[i],2),temp);
 	}
 	*Alpha = sqrt(temp);
 	free(KtU);
@@ -513,12 +470,11 @@ void updateUWithGrad(double *uIn, double *uOut, int Np, double *Gradient, int mS
 }
 double Obj(double *originalU,double *uToGetWrittenTo, int mSteps,int Np, double *Gradient, double Delta_u,double *cMajor,double *rMajor,double *output, int Nt,int Kdim){
 	// returns { Phi( u-(Grad(u)*m*Delta_u) ) }
-	// memcpy(newUSpace,u,Np*sizeof(double));
 	updateUWithGrad(originalU,uToGetWrittenTo,Np,Gradient,mSteps,Delta_u);
 	return phiOfU(uToGetWrittenTo,Np,cMajor,rMajor,output,Nt,Kdim);
 }
 //run l1 optimization
-void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim){
+void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt,int Kdim,int rank,int *cancel){
 	double inTime = read_timer( );
 	//initial U vector gets passed in....
 	//workspace
@@ -536,44 +492,49 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 	calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
 	double Delta_u=999999999, m, mPlusOne;
 	int loops = 0;
-	// double norm = 999999999;//getNorm( Gradient, Np );
+	int steps = 0;
 	double previousDelta_u; //high value to skip first Delta_u iteration
-	double divisor = 100;
-	// while( norm > EPSILON+100 ){ 
-	while( true ){ 
-		// if (loops++ % 10000){
-			printf("----------------------------------------------\n");
-			printf("Loops: %d \t time: %f\n",loops++,read_timer( )-inTime);
-		// }
-		printf("u:\n");
-		// printMat(u,1,Np);
-		printf("Grad:\n");
-		// printMat(Gradient,1,Np);
-		printf("Gradient norm: %f\n",getNorm( Gradient, Np ));
-		printf("phi: %f\n",phiOfU(u,Np, cMajor, rMajor, output, Nt, Kdim));
-		printf("Alpha: %f\n",Alpha);
-		printf("Beta:\n");
-		// printMat(Beta,1,Np);
-		
+	
+	//use cancel here as signal to quit from host
+	while( *cancel == 0 ){ 
+		if (PRINTSTATEMENTS){
+			printf("R: %d ----------------------------------------------\n",rank);
+			printf("R: %d Loops: %d \t time: %f\n",rank,loops++,read_timer( )-inTime);
+			printf("R: %d u:\n",rank);
+			// printMat(u,1,Np);
+			printf("R: %d Grad:\n",rank);
+			// printMat(Gradient,1,Np);
+			printf("R: %d Gradient norm: %f\n",rank,getNorm( Gradient, Np ));
+			printf("R: %d phi: %f\n",rank,phiOfU(u,Np, cMajor, rMajor, output, Nt, Kdim));
+			printf("R: %d Alpha: %f\n",rank,Alpha);
+			printf("R: %d Beta:\n",rank);
+			// printMat(Beta,1,Np);
+		}
 		int mSteps = 0; 
 		
 		previousDelta_u = Delta_u;
-		Delta_u = getDeltaStep(cMajor, Nt,Np, Kdim, Beta, Alpha)/divisor;
+		Delta_u = getDeltaStep(cMajor, Nt,Np, Kdim, Beta, Alpha)/DIVISOR;
 		while (Delta_u >= previousDelta_u){
 			Delta_u = Delta_u/2;
 		}
 		
-		printf("Delta_u: %f\n",Delta_u);
+		if (PRINTSTATEMENTS){
+			printf("R: %d Delta_u: %f\n",rank,Delta_u);
+		}
 		// m = Obj(u,mSteps,Delta_u);
 		m = Obj(u,newTempUSpace, mSteps,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 		// mPlusOne = Obj(u,mSteps+1,Delta_u);
 		mPlusOne = Obj(u,newTempUSpace, mSteps+1,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 		double diff = abs(m - mPlusOne);
-		printf("Step difference: %f\n",diff);
+		if (PRINTSTATEMENTS){
+			printf("R: %d Step difference: %f\n",rank,diff);
+		}
 		if (diff <= EPSILON)
 			break;
 		
-		printf("\t\tSteps:%d\tm=%f m+1=%f\n",mSteps,m,mPlusOne);
+		if (PRINTSTATEMENTS){
+			printf("R: %d \t\tSteps:%d\tm=%f m+1=%f\n",rank,mSteps,m,mPlusOne);
+		}
 		while( true ){
 			if ( m > mPlusOne ){
 				mSteps++;
@@ -584,10 +545,15 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 			// mPlusOne = Obj(u,mSteps,Delta_u); //is plus one, due to the mSteps++
 			mPlusOne = Obj(u,newTempUSpace, mSteps+1,Np, Gradient, Delta_u,cMajor,rMajor,output, Nt,Kdim);
 			//now mPlusOne is one mSteps ahead of m
-			printf("\t\tSteps:%d\tm=%f m+1=%f\n",mSteps,m,mPlusOne);
+			if (PRINTSTATEMENTS){
+				printf("R: %d \t\tSteps:%d\tm=%f m+1=%f\n",rank,mSteps,m,mPlusOne);
+			}
+			steps++;
 		}
 		
-		printf("\t\tBroke after with mSteps: %d\n",mSteps);
+		if (PRINTSTATEMENTS){
+			printf("R: %d \t\tBroke after with mSteps: %d\n",rank,mSteps);
+		}
 		// u = u-(Grad(u)*mSteps*Delta_u);
 		//Set uIn=uOut=u, since we want to overwrite the old u
 		updateUWithGrad(u,u, Np, Gradient, mSteps, Delta_u);
@@ -599,16 +565,21 @@ void calcL1(double *u,int Np,double *cMajor,double *rMajor,double *output,int Nt
 		// Calculate Gradient for next timestep with next u
 		calcGrad(Gradient, u, Np, cMajor, rMajor, output, Nt, Kdim, Beta, Alpha); //store gradient(u) in Gradient
 		
-		// norm = getNorm( Gradient, Np );
-		
 		//if (loops > 100)
 		//	break;
+		loops++;
 	} 
 	//now u == u*
 	// u holds the optimal u
 	free(Beta);
 	free(Gradient);
 	free(newTempUSpace);
+	if (PRINTSTATEMENTS){
+		if (*cancel == 1){
+			printf("R: %d BROKE LOOP FROM SIGNAL\n",rank);
+		}
+		printf("R: %d\tLoops:%d\tSteps:%d\n",rank,loops,steps);
+	}
 	return;
 }
 //get parameter index for a given kernel
@@ -619,6 +590,36 @@ int paramInd(unsigned int *order,int ind){
 			n++;
 	}
 	return n;
+}
+void calcOwnKStarPortion(double *U, double *thisPortion, int Np, int Kdim, double *fatKColumnMajor, double phiStar, int rank, int numKernels, int n_proc){
+
+	double *currentColumn, *currentKernel;
+	int innerLoop = 0;
+	for(unsigned int i=rank;i<numKernels;i+=n_proc){
+		//do this proc's workload
+		int thisKOffset = i*Kdim*Kdim;
+		currentKernel = &(fatKColumnMajor[thisKOffset]);
+		for (int j=0;j<Kdim;j++){
+			currentColumn = &(currentKernel[j*Kdim]);
+			//multiply column* Trans(column) to get square matrix
+			//since we're summing matrices, can simply sum each element at a given location for the matrix?
+			//blocked approach
+			int blockSize = min(BLOCKSIZE,(int)Kdim);
+			for(int y=0;y<((int)ceil(1.0*Kdim/blockSize));y++){
+				for(int x=0;x<ceil(1.0*Kdim/blockSize);x++){
+					for(int a=y*blockSize;a<y*blockSize+blockSize&&a<Kdim;a++){
+						for(int b=x*blockSize;b<x*blockSize+blockSize&&b<Kdim;b++){
+							innerLoop++;
+							thisPortion[b+a*Kdim] += currentColumn[a]*currentColumn[b]*abs(U[i*Kdim + j])/phiStar;
+						}
+					}
+				}	
+			}
+		}
+	}
+	// printf("R: %d\tinnerloop:%d\n",rank,innerLoop);
+	//thisPortion now holds the summed values of the work this proc did...
+	//since we calloced, if no work to do, values are zero
 }
 
 int main( int argc, char **argv ){ 
@@ -658,9 +659,9 @@ int main( int argc, char **argv ){
 	int numLinear=0;
 	int numPoly=0;
 	
-	// if (rank==0){
-		// printf("Beginning time:\t%f\n",read_timer( )-simulation_time);
-	// }
+	if (PRINTSTATEMENTS && rank==0){
+		printf("Beginning time:\t%f\n",read_timer( )-simulation_time);
+	}
 	int actuallyAre=0;
 	if (rank==0){
 		//only host core does this, get file info (#dimensions,#input points)
@@ -705,9 +706,10 @@ int main( int argc, char **argv ){
 	MPI_Bcast(&numGaussian,1,MPI_INTEGER,0,MPI_COMM_WORLD);
 	MPI_Bcast(&numLinear,1,MPI_INTEGER,0,MPI_COMM_WORLD);
 	MPI_Bcast(&numPoly,1,MPI_INTEGER,0,MPI_COMM_WORLD);
-	// printf("R:%d G:%d, L:%d, P:%d\n",rank, numGaussian,numLinear,numPoly);
-	// printf("R:%d d\n",rank);
-	// fflush(stdout);
+	if (PRINTSTATEMENTS){
+		printf("R:%d G:%d, L:%d, P:%d\n",rank, numGaussian,numLinear,numPoly);
+		printf("R:%d d\n",rank);
+	}
 	double *gaussianParam = (double*)calloc(numGaussian,sizeof(double));
 	double *polyC1 = (double*)calloc(numPoly,sizeof(double));
 	double *polyC2 = (double*)calloc(numPoly,sizeof(double));
@@ -719,8 +721,10 @@ int main( int argc, char **argv ){
 	unsigned int maxDimTotalLength = maxDim*maxDim;
 	unsigned int rowsInTraining = ceil(maxDim/2);
 	unsigned int rowsInTest = maxDim-rowsInTraining;
-	//Check that all cores got them. Correct.
-	// printf("R:%d numInputPoints:%d, dimension:%d\n",rank,numInputPoints,dimension);
+	if (PRINTSTATEMENTS){
+		//Check that all cores got them.
+		printf("R:%d numInputPoints:%d, dimension:%d\n",rank,numInputPoints,dimension);
+	}
 	
 	//Make space for the input data
 	double *input = (double*) calloc(dimension*numInputPoints,sizeof(double));
@@ -736,8 +740,6 @@ int main( int argc, char **argv ){
 		exit(1);
 	}
 	
-	// printf("R:%d e\n",rank);
-	// fflush(stdout);
 	if(rank == 0){
 		//host cpu grabs data from files.
 		
@@ -745,8 +747,6 @@ int main( int argc, char **argv ){
 		unsigned int tempSize = 10000;
 		char *temp = (char*)calloc(tempSize , sizeof(char));
 		
-	// printf("R:%d f\n",rank);
-	// fflush(stdout);
 		//Grab input csv
 		FILE *fi = fopen(inputFile,"r");
 		unsigned int c=0;
@@ -755,9 +755,11 @@ int main( int argc, char **argv ){
 			c++;
 		}
 		fclose(fi);
-		// printf("input:\n");
-		// printMat(input,numInputPoints,dimension);
-		// printf("\n");
+		if (PRINTSTATEMENTS){
+			printf("input:\n");
+			printMat(input,1,dimension*numInputPoints);
+			printf("\n");
+		}
 		
 		//grab output csv
 		FILE *fo = fopen(outputFile,"r");
@@ -768,9 +770,11 @@ int main( int argc, char **argv ){
 		fgets(temp,tempSize,fo);
 		parse(temp, ",",output,actuallyAre,numInputPoints);
 		fclose(fo);
-		// printf("output:\n");
-		// printMat(output,1,numInputPoints);
-		// printf("\n");
+		if (PRINTSTATEMENTS){
+			printf("output:\n");
+			printMat(output,1,numInputPoints);
+			printf("\n");
+		}
 		
 		fi = fopen(kernelFile,"r");
 		//Get info on kernels...
@@ -783,15 +787,10 @@ int main( int argc, char **argv ){
 		while(fgets(temp,tempSize,fi)){
 			parseKernel( temp, ",",&numGaussian,&numLinear,&numPoly,gaussianParam,polyC1,polyC2,polyD);
 		}
-		
-		// printf("R:%d G:%d(%f) L:%d P:%d(%f,%f,%f)\n",rank,numGaussian,gaussianParam[0],numLinear,
-		// numPoly,polyC1[0],polyC2[0],polyD[0]);
 		fclose(fi);
-		
 		free(temp);
 	}
-	//broadcast input data to all cores : correct
-	// printf("R:%d waiting/sending G:%d, P:%d\n",rank, numGaussian,numPoly);
+	//broadcast input data to all cores
 	MPI_Bcast(input,dimension*numInputPoints,MPI_DOUBLE,0,MPI_COMM_WORLD);
 	MPI_Bcast(gaussianParam,numGaussian,MPI_DOUBLE,0,MPI_COMM_WORLD);
 	MPI_Bcast(polyC1,numPoly,MPI_DOUBLE,0,MPI_COMM_WORLD);
@@ -802,10 +801,7 @@ int main( int argc, char **argv ){
 	
 	unsigned int numKernels = numGaussian+numLinear+numPoly;
 		
-	// MPI_Barrier(MPI_COMM_WORLD);
-	// return 0;
-	
-	if (rank==0){
+	if (PRINTSTATEMENTS && rank==0){
 		printf("Set up time:\t%f\n",read_timer( )-simulation_time);
 	}
 	
@@ -820,10 +816,7 @@ int main( int argc, char **argv ){
 	for(unsigned int i=0;i<numPoly;i++){
 		kernAss[i+numGaussian+numLinear] = 2;
 	}
-	// if (rank==0){
-		// printf("a\n");
-		// fflush(stdout);
-	// }
+	
 	//get kernels for this rank to compute...
 	//shuffle the job order, same seed on all procs. Load balances the kernels
 	srand(n_proc);
@@ -834,10 +827,7 @@ int main( int argc, char **argv ){
 		kernAss[j] = kernAss[i];
 		kernAss[i] = t;
 	}
-	// if (rank==0){
-		// printf("b\n");
-		// fflush(stdout);
-	// }
+	
 	//allocate space for most this proc would have to work on...
 	int procWorkSize[n_proc];
 	int recvOffset[n_proc];
@@ -848,10 +838,7 @@ int main( int argc, char **argv ){
 		else
 			recvOffset[i] = 0;
 	}
-	// if (rank==0){
-		// printf("c\n");
-		// fflush(stdout);
-	// }
+	
 	double *workSpace = (double*)calloc(procWorkSize[rank],sizeof(double));
 	int workedSoFar = 0;
 	int paramIndex;
@@ -870,12 +857,9 @@ int main( int argc, char **argv ){
 		}
 		workedSoFar++;
 	}
-	// if (rank==0){
-		// printf("d\n");
-		// fflush(stdout);
-	// }
-// printf("R:%d workLen:%d proc todo:%d done:%d sending #s:%d at offset:%d\n",
-// rank,procWorkSize[rank],procWorkSize[rank]/maxDimTotalLength,workedSoFar,workedSoFar*maxDimTotalLength,recvOffset[rank]);
+	if (PRINTSTATEMENTS){
+		printf("R:%d workLen:%d proc todo:%d done:%d sending #s:%d at offset:%d\n", rank,procWorkSize[rank],procWorkSize[rank]/maxDimTotalLength,workedSoFar,workedSoFar*maxDimTotalLength,recvOffset[rank]);
+	}
 	
 	double *fatKColumnMajor,*fatKRowMajor;
 	//every proc get the fatK info
@@ -883,18 +867,17 @@ int main( int argc, char **argv ){
 	fatKRowMajor = (double*)calloc(maxDimTotalLength*numKernels,sizeof(double));
 	
 	
-	if (rank==0){
+	if (PRINTSTATEMENTS && rank==0){
 		printf("Calculation time:\t%f\n",read_timer( )-simulation_time);
 	}
 	
-	//gather the kernels back to the main.
-	// MPI_Gatherv ( workSpace,workedSoFar*maxDimTotalLength , MPI_DOUBLE, fatKColumnMajor, procWorkSize, recvOffset, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+	//gather the kernels back to all procs
 	MPI_Allgatherv ( workSpace,workedSoFar*maxDimTotalLength , MPI_DOUBLE, fatKColumnMajor, procWorkSize, recvOffset, MPI_DOUBLE, MPI_COMM_WORLD );
 		
 	
 	//Fat k is now in column major. 
 	// easiest to bring together in column, then transpose. easier than interleaving portions...
-	if (rank==0){
+	if (PRINTSTATEMENTS && rank==0){
 		printf("Gather time:\t%f\n",read_timer( )-simulation_time);
 	}
 	
@@ -913,18 +896,19 @@ int main( int argc, char **argv ){
 		}
 	}		
 		
-	if (rank==0){
-		// printf("fatKRowMajor:\n");
-		// printMat(fatKRowMajor,maxDim,maxDim*numKernels);
-		// printf("fatKColumnMajor:\n");
-		// printMat(fatKColumnMajor,maxDim,maxDim*numKernels);
-		// printf("reformat fatKColumnMajor:\t%f\n",read_timer( )-simulation_time);
+	if (PRINTSTATEMENTS && rank==0){
+		printf("fatKRowMajor:\n");
+		printMat(fatKRowMajor,maxDim,maxDim*numKernels);
+		printf("fatKColumnMajor:\n");
+		printMat(fatKColumnMajor,maxDim,maxDim*numKernels);
+		printf("reformat fatKColumnMajor:\t%f\n",read_timer( )-simulation_time);
 	}
 	
 	
 	int Np = numKernels*maxDim;
 	// have each slave proc calculate and send back result
 	double *U = (double*) calloc (Np,sizeof(double));
+	double phiStar, muStar;
 	if (rank != 0){
 		//Calculate own starting location...
 		srand(rank); //unique seed for each proc, same seed=same starting locations...
@@ -932,19 +916,30 @@ int main( int argc, char **argv ){
 			//Begin with random starting location
 			U[i] = (1.0*rand()+1)/RAND_MAX; //0.1;
 		}
+		if (PRINTSTATEMENTS && rank == 1){
+			printf("My U: %f %f %f %f\n",U[0],U[1],U[2],U[3]);
+		}
 		//optimize L1
+		if (PRINTSTATEMENTS && rank == 1){
+			printf("beginning calcL1:\t%f\n",read_timer( )-simulation_time);
+		}
+		int cancel = 0;
+		MPI_Request cancelRequests;
+		MPI_Irecv(&cancel, 1, MPI_INTEGER,0, CANCELALERT, MPI_COMM_WORLD, &cancelRequests );
+		calcL1(U,Np,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim,rank,&cancel);
 		
-		calcL1(U,Np,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
-		printf("R: %d\tOptimal U on slave:\n",rank);
-		printMat(U,1,Np);
-		printf("\n");
-		fflush(stdout);
+		if (PRINTSTATEMENTS && rank == 1){
+			printf("Ending calcL1:\t%f\n",read_timer( )-simulation_time);
+			printf("R: %d\tOptimal U on slave:\n",rank);
+			printMat(U,1,Np);
+			printf("\n");
+		}
 		
 		// now U holds the optimal u
-		MPI_Send( U, Np, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD );
-	}else{
+		MPI_Request R;
+		MPI_Isend( U, Np, MPI_DOUBLE, 0, L1RESULT , MPI_COMM_WORLD, &R );
 		
-		//working on implementing an efficient "get the first response" algorithm
+	}else{
 		
 		//holds numProcs-1 sets of Us
 		double *holder = (double*) calloc ((n_proc-1)*(Np),sizeof(double));
@@ -953,46 +948,76 @@ int main( int argc, char **argv ){
 			// set up nonblocking recvs...
 			MPI_Irecv(holder+i*Np, Np, MPI_DOUBLE, i+1, L1RESULT, MPI_COMM_WORLD, &(requests[i]) );
 		}
+		if (PRINTSTATEMENTS){
+			printf("set up Recvs:\t%f\n",read_timer( )-simulation_time);
+		}
 		int c = 0;
 		int flag = 0;
-		// printf("checking c:%d\n",c);
 		MPI_Request_get_status(requests[c], &flag, MPI_STATUS_IGNORE);
 		unsigned int iter=0;
 		while (flag == 0){
 			iter++;
 			c = c++ % (n_proc-1);
-			// printf("checking c:%d\n",c);
 			MPI_Request_get_status(requests[c], &flag, MPI_STATUS_IGNORE);
 		}
 		//c now is index to the first received U
-		// printf("First index: %d after %u iters\n",c+1,iter);
+		if (PRINTSTATEMENTS){
+			printf("First index: %d after %u iters, %f sec\n",c+1,iter,read_timer( )-simulation_time);
+		}
+		int cancel = 1;
+		MPI_Request *requests2 = (MPI_Request*) calloc (n_proc-1,sizeof(MPI_Request));
+		for(int i=1;i<n_proc;i++){
+			// tell slaves to stop
+			MPI_Isend(&cancel,1,MPI_INTEGER,i,CANCELALERT,MPI_COMM_WORLD, &(requests2[i]) );
+		}
 		
 		//Assume U now holds the optimal answer from some proc
 		memcpy(U, &(holder[c]),Np*sizeof(double));
-		/*
-		double phiStar = phiOfU(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
-		//get vStar
+		
+		phiStar = phiOfU(U,numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
 		double vStar;
 		getAlpha(&vStar,U, numKernels*maxDim,fatKColumnMajor,fatKRowMajor,output,rowsInTraining,maxDim);
-		//get muStar
-		double muStar = vStar/phiStar;
+		muStar = vStar/phiStar;
 		
 		
+		if (PRINTSTATEMENTS){
+			printf("PhiStar: %f\nvStar: %f\nmuStar: %f\nEpsilon: %f\nRho: %f\n",phiStar,vStar,muStar,EPSILON,RHO);
+			printf("Optimal U on host:\n");
+			printMat(U,1,Np);
+			printf("\n");
+			printf("phiStar:%f\nvStar:%f\nmuStar:%f\n\n",phiStar,vStar,muStar);
+			printf("Beginning KStar: %f\n",read_timer( )-simulation_time);
+		}
+	}
+	
+	//broadcast the optimalU
+	MPI_Bcast(U,Np,MPI_DOUBLE,0,MPI_COMM_WORLD);
+	//broadcast the phi*
+	MPI_Bcast(&phiStar,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+	if (PRINTSTATEMENTS){
+		if(rank == 0){
+			printf("Ending Bcasts: %f\n",read_timer( )-simulation_time);
+		}
+	}
+	double *KStar = (double*)calloc(maxDim*maxDim,sizeof(double));
+	double *TempKStar = (double*)calloc(maxDim*maxDim,sizeof(double));
+	calcOwnKStarPortion(U, TempKStar, Np, maxDim, fatKColumnMajor, phiStar, rank, numKernels,n_proc);
+	
+	if (PRINTSTATEMENTS){
+		if(rank == 0){
+			printf("Ending own calc: %f\n",read_timer( )-simulation_time);
+		}
+	}
+	MPI_Reduce(TempKStar, KStar, maxDim*maxDim,MPI_DOUBLE, MPI_SUM , 0, MPI_COMM_WORLD);
+	
+	if (rank == 0){
 		
-		//build KStar
-		double *KStar = (double*)calloc(maxDim*maxDim,sizeof(double));
-		double *currentColumn;
-		for(int j=0;j<numKernels*maxDim;j++){
-			//iterate through each column of K, each eigenvector
-			currentColumn = &(fatKColumnMajor[j]);
-			double thisLambda = abs(U[j])/phiStar;
-			//multiply column* Trans(column) to get square matrix
-			//since we're summing matrices, can simply sum each element at a given location for the matrix?
-			for(int x=0;x<maxDim;x++){
-				for(int y=0;y<maxDim;y++){
-					KStar[y+x*maxDim] += currentColumn[x]*currentColumn[y]*thisLambda;
-				}
-			}
+		if (PRINTSTATEMENTS){
+			printf("Ending KStar: %f\n",read_timer( )-simulation_time);
+			printf("KStar:\n");
+			printMat(KStar,maxDim,maxDim);
+			printf("\n");
+			printf("\n");
 		}
 		
 		// Now KStar is built
@@ -1010,6 +1035,16 @@ int main( int argc, char **argv ){
 				KTrainingStarCopy[j+i*rowsInTraining] = KTrainingStar[j+i*rowsInTraining];
 			}
 		}
+		
+		
+		if (PRINTSTATEMENTS){
+			printf("Ending KTrainingStar: %f\n",read_timer( )-simulation_time);
+			printf("KTrainingStar:\n");
+			printMat(KTrainingStar,rowsInTraining,rowsInTraining);
+			printf("\n");
+			printf("\n");
+		}
+		
 		// KTrainingStar is built
 		int rowsInTest = maxDim - rowsInTraining;
 		double *XStar = (double*) calloc(rowsInTest*rowsInTraining, sizeof(double));
@@ -1021,6 +1056,13 @@ int main( int argc, char **argv ){
 			}
 		}
 		//XStar is built
+		if (PRINTSTATEMENTS){
+			printf("Ending XStar: %f\n",read_timer( )-simulation_time);
+			printf("XStar:\n");
+			printMat(XStar,rowsInTest,rowsInTraining);
+			printf("\n");
+			printf("\n");
+		}
 		
 		int *pivotInfo = (int*)calloc(rowsInTraining,sizeof(int));
 		int success=0;
@@ -1029,6 +1071,9 @@ int main( int argc, char **argv ){
 			printf("DGETRF failed?\n");
 			exit(-1);
 		}
+		if (PRINTSTATEMENTS){
+			printf("Ending pivot find: %f\n",read_timer( )-simulation_time);
+		}
 		double *KTrainingStarInverse = KTrainingStar; //for naming ease
 		//Do the inverse computation, store in KTrainingStar
 		dgetri( rowsInTraining,KTrainingStarInverse,rowsInTraining,pivotInfo,&success);
@@ -1036,29 +1081,49 @@ int main( int argc, char **argv ){
 			printf("DGETRI failed?\n");
 			exit(-1);
 		}
+		if (PRINTSTATEMENTS){
+			printf("Ending inverse computation: %f\n",read_timer( )-simulation_time);
+			printf("KTrainingStarInverse:\n");
+			printMat(KTrainingStarInverse,rowsInTraining,rowsInTraining);
+			printf("\n");
+			printf("\n");
+		}
 		
 		double *alphaStars = (double*) calloc(rowsInTraining,sizeof(double));
 		//compute KTrainingStarInverse * OutputTrainingTranspose
 		dgemv('N',rowsInTraining,rowsInTraining,1.0,KTrainingStarInverse,rowsInTraining,
 					output,1,1.0,alphaStars,1);
 		
+		
+		if (PRINTSTATEMENTS){
+			printf("Ending alphaStars: %f\n",read_timer( )-simulation_time);
+			printf("alphaStars:\n");
+			printMat(alphaStars,1,rowsInTraining);
+			printf("\n");
+			printf("\n");
+		}
+		
 		double *estimates = (double*)calloc(rowsInTest,sizeof(double));
-		dgemv('N',rowsInTest,rowsInTraining,1.0,XStar,rowsInTest,
-					estimates,1,1.0,estimates,1);
+		dgemv('N',rowsInTest,rowsInTraining,1.0,XStar,rowsInTest,alphaStars,1,1.0,estimates,1);
 		
 		printf("Estimates: \n");
-		printMat(estimates,rowsInTest,1);
-		printf("\n\n");
+		printMat(estimates,1,rowsInTest);
+		printf("Ground Truth: \n");
+		printMat(&(output[rowsInTraining]),1,rowsInTest);
+		printf("\n");
 		
-		free(KStar);
 		free(KTrainingStar);
 		free(KTrainingStarCopy);
 		free(XStar);
 		free(pivotInfo);
 		free(alphaStars);
 		free(estimates);
-		*/
+		
 	}
+	free(KStar);
+	free(TempKStar);
+	// */
+	
 	fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
 	// if (rank == 0){
@@ -1069,13 +1134,13 @@ int main( int argc, char **argv ){
 		// printf("\n");
 		// printf("\n");
 	// }
-	MPI_Barrier(MPI_COMM_WORLD);
+	// MPI_Barrier(MPI_COMM_WORLD);
     if( rank == 0 ){
         printf("input:%dx%d n_procs = %d, simulation time = %g s\n", dimension,numInputPoints, n_proc, read_timer( )-simulation_time );
 		printf("NumKernels: %d\n",numKernels);	
 		printf("Linear: used:%d\n",numLinear);
-		printf("Polynomial: used:%d\tc1:%f,c2:%f,d:%f\n",numPoly,polyC1[0],polyC2[0],polyD[0]);
-		printf("Gaussian: used:%d\tsigma:%f\n",numGaussian,gaussianParam[0]);
+		printf("Polynomial: used:%d\n",numPoly);
+		printf("Gaussian: used:%d\n",numGaussian);
 		printf("fatKColumnMajor: %u values, %u bytes\n",maxDimTotalLength*numKernels,maxDimTotalLength*numKernels*sizeof(double));
 		printf("Training: %d rows, Testing: %d rows\n",rowsInTraining,rowsInTest);
     }
