@@ -1,8 +1,8 @@
 #PBS -l walltime=00:10:00
-#PBS -l mppwidth=20
+#PBS -l mppwidth=80
 #PBS -l mppnppn=1
 #PBS -j oe
 #PBS -V
 
 cd $PBS_O_WORKDIR
-aprun -n 20 -N 1 ./traffic -i input.csv -o output.csv -f kernel.csv -m 1000
+aprun -n 80 -N 1 ./traffic -i input.csv -o output.csv -f kernel.csv -m 400
