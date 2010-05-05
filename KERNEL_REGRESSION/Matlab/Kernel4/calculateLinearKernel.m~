@@ -12,13 +12,11 @@ for i = 1:NumberOfPoints
         Kernel(i,j) = Inputs(:,i)'*Inputs(:,j);
     end
 end
-csvwrite('linear_kernel.txt',Kernel);
-
 
 % Normalisation
 N = trace(Kernel);
 Kernel = Kernel/N;
-csvwrite('linear_kernel_trace_normalized.txt',Kernel);
+
 
 %% Does an SVD and returns the US^0.5 matrix.
 
