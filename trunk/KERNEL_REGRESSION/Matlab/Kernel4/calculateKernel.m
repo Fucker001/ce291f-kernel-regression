@@ -31,3 +31,5 @@ end
 %% Concatenates all the individual Kernels together.
 Kernel = [KL KG KP];
 Kernel = Kernel/Rho^2;
+
+csvwrite('fat_K.txt',Kernel);

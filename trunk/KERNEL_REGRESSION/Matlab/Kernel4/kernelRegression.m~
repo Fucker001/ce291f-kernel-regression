@@ -1,4 +1,4 @@
-function [Error,AggregatedError,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet,Kernel] = kernelRegression(share,rho)
+function [Error,AggregatedError,Estimate,UStar,Inputs,Outputs,ShareOfTrainingSet] = kernelRegression(share,rho)
 % Calculates the estimator and the error
 [Inputs,Outputs,ShareOfTrainingSet,Rho,BoolLinKer,...
     Sigmas,PolyParameters]= loadData ();
@@ -11,8 +11,6 @@ Rho=rho;
 
 [UStar,PhiStar,VStar] = cvxSolve(Outputs,Kernel,ShareOfTrainingSet);
 
-csvwrite('Ustar.txt',UStar);
-csvwrite('Phistar.txt',PhiStar);
-csvwrite('VStar.txt',VStar);
+cvxwrite('Ustar.txt',)
 
 [Error,AggregatedError,Estimate] = estimator(Outputs,Kernel,PhiStar,VStar,UStar,ShareOfTrainingSet,Rho);
