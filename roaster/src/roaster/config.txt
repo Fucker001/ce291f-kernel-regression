@@ -1,0 +1,6 @@
+Method
+
+1. Download rxtx binary at http://rxtx.qbang.org/wiki/index.php/Download
+2. Copy rxtxParallel.dll to <jre_home>\bin\
+3. Copy rxtxSerial.dll to <jre_home>\bin\
+4. Copy RXTXcomm.jar to <jre_home>\lib\ext\
