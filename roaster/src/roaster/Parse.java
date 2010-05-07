@@ -3,7 +3,9 @@ package roaster;
 import java.io.FileNotFoundException;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Properties;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -25,6 +27,7 @@ public class Parse {
     public static String message = "No message";
     public static String soundFileName = "C:\\Users\\Matthieu\\Desktop\\tada.wav";
     public static String moteIdentifier = "$0001";
+    public static FileWriter fw;
 
     /**
      * Test that the parser works properly
@@ -61,6 +64,7 @@ public class Parse {
         Parse.takeAbsValues = new Boolean(props.getProperty("take_absolute_values"));
         Parse.threshold = new Double(props.getProperty("temperature_threshold"));
         Parse.moteIdentifier = props.getProperty("mote_identifier");
+        Parse.fw = new FileWriter(new File(props.getProperty("file_to_write") + ".txt"));
         System.out.println("System initialized.");
     }
 
@@ -73,11 +77,11 @@ public class Parse {
      * @return true if the alarm should ring
      */
     public static boolean parseAndAlert(String line, double threshold, boolean takeAbsValues) {
-        if (line.equals("")){
+        if (line.equals("")) {
             System.err.println("Parse: invalid message.");
             return false;
         }
-        if (!line.contains(Parse.moteIdentifier)){
+        if (!line.contains(Parse.moteIdentifier)) {
             System.out.println("---------" + line);
             return false;
         }
@@ -96,15 +100,27 @@ public class Parse {
             temp = temp.substring(1);
         }
         double temperature = Double.parseDouble(temp);
-        if (temperature > threshold) {
-            result = true;
-            Parse.message = "Temperature when stopped: " + temperature;
+        if (line.contains(Parse.moteIdentifier)) {
+            if (temperature > threshold) {
+                result = true;
+                Parse.message = "Temperature when stopped: " + temperature;
+            }
+            System.out.println(temperature + "F....  Is it too high?  " + result);
+            Parse.storeData(mote, temperature);
         }
-        System.out.println(temperature + "F....  Is it too high?  " + result);
         return result;
     }
 
+    public static void storeData(String identifier, double temperature) {
+        String line = identifier + "," + temperature + "\n";
+        try {
+            Parse.fw.write(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    
     // Play a sound
     private static final int EXTERNAL_BUFFER_SIZE = 524288; // 128Kb
 
