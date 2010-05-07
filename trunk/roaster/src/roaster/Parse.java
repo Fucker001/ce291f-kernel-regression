@@ -73,6 +73,15 @@ public class Parse {
      * @return true if the alarm should ring
      */
     public static boolean parseAndAlert(String line, double threshold, boolean takeAbsValues) {
+        if (line.equals("")){
+            System.err.println("Parse: invalid message.");
+            return false;
+        }
+        if (!line.contains(Parse.moteIdentifier)){
+            System.out.println("---------" + line);
+            return false;
+        }
+        System.out.println(line);
         boolean result = false;
         String[] intern = line.split(",");
         String mote = intern[0];
@@ -87,12 +96,15 @@ public class Parse {
             temp = temp.substring(1);
         }
         double temperature = Double.parseDouble(temp);
-        if (mote.equals(Parse.moteIdentifier) && temperature > threshold) {
+        if (temperature > threshold) {
             result = true;
             Parse.message = "Temperature when stopped: " + temperature;
         }
+        System.out.println(temperature + "F....  Is it too high?  " + result);
         return result;
     }
+
+
     // Play a sound
     private static final int EXTERNAL_BUFFER_SIZE = 524288; // 128Kb
 
