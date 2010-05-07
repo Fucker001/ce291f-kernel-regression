@@ -38,21 +38,32 @@ public class ReadCOM {
         InputStream in = serialPort.getInputStream();
         byte[] buffer = new byte[1024];
         int len = -1;
+        String line = "";
         while ((len = in.read(buffer)) > -1) {
-            String line = new String(buffer, 0, len);
-            if (line.contains("\n")) {
-                System.out.print(line);
-            } else {
-                System.out.println(line);
+            line += new String(buffer, 0, len);
+            if (line.contains("\r\n")) {
+                String[] coco = line.split("\r\n");
+                if (coco.length == 2) {
+                    line = coco[0];
+                    // Test if the alarm should be thrown
+                    boolean alert = Parse.parseAndAlert(
+                            line,
+                            Parse.threshold,
+                            Parse.takeAbsValues);
+                    if (alert) {
+                        throw new AlarmThrownException(Parse.message);
+                    }
+                    line = coco[1];
+                }
+                else{
+                    line = "";
+                    if (coco.length == 2){
+                        line = coco[1];
+                    }
+                }
             }
 
-            // Test if the alarm should be thrown
-            if (Parse.parseAndAlert(
-                    line,
-                    Parse.threshold,
-                    Parse.takeAbsValues)) {
-                throw new AlarmThrownException(Parse.message);
-            }
+
 
         }
     }
