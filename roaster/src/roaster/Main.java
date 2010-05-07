@@ -11,8 +11,15 @@ public class Main {
      */
     public static void main(String[] args) {
         try {
+            Parse.init(args[0]);
             ReadCOM rcom = new ReadCOM();
             rcom.connect("COM5");
+        }catch (AlarmThrownException alarm){
+            try {
+                Parse.ring();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
