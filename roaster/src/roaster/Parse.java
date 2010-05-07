@@ -115,6 +115,7 @@ public class Parse {
         String line = identifier + "," + temperature + "\n";
         try {
             Parse.fw.write(line);
+            Parse.fw.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }

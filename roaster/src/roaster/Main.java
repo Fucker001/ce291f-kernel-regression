@@ -17,7 +17,6 @@ public class Main {
             rcom.connect("COM5");
         }catch (AlarmThrownException alarm){
             try {
-                Parse.fw.close();
                 Parse.ring();
                 System.exit(0);
             } catch (Exception ex) {
