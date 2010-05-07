@@ -36,6 +36,7 @@ public class ReadCOM {
                 SerialPort.STOPBITS_1,
                 SerialPort.PARITY_NONE);
         InputStream in = serialPort.getInputStream();
+        System.out.println("Input stream caught.");
         byte[] buffer = new byte[1024];
         int len = -1;
         String line = "";
@@ -43,23 +44,25 @@ public class ReadCOM {
             line += new String(buffer, 0, len);
             if (line.contains("\r\n")) {
                 String[] coco = line.split("\r\n");
-                if (coco.length == 2) {
-                    line = coco[0];
-                    // Test if the alarm should be thrown
-                    boolean alert = Parse.parseAndAlert(
-                            line,
-                            Parse.threshold,
-                            Parse.takeAbsValues);
-                    if (alert) {
-                        throw new AlarmThrownException(Parse.message);
+                if (coco.length >= 1) {
+                    for (int i = 0; i < coco.length; i++) {
+                        // Test if the alarm should be thrown
+                        boolean alert = Parse.parseAndAlert(
+                                coco[i],
+                                Parse.threshold,
+                                Parse.takeAbsValues);
+                        if (alert) {
+                            throw new AlarmThrownException(Parse.message);
+                        }
+
                     }
-                    line = coco[1];
-                }
-                else{
+                    if (coco.length >= 2) {
+                        line = coco[coco.length - 1];
+                    } else {
+                        line = "";
+                    }
+                } else {
                     line = "";
-                    if (coco.length == 2){
-                        line = coco[1];
-                    }
                 }
             }
 
