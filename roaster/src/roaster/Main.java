@@ -14,9 +14,16 @@ public class Main {
             Parse.init(args[0]);
 //            Parse.init("./src/roaster/roaster.properties");
             ReadCOM rcom = new ReadCOM();
-            rcom.connect("COM5");
+            rcom.connect(args[1]);
         }catch (AlarmThrownException alarm){
             try {
+                // Wait 10 sec
+                Thread.sleep(10000);
+                // Ring
+                Parse.ring();
+                // Wait 25 secs
+                Thread.sleep(25000);
+                // Countdown
                 Parse.ring();
                 System.exit(0);
             } catch (Exception ex) {
