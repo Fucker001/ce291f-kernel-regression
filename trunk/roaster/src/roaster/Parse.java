@@ -5,7 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.Properties;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -28,6 +28,9 @@ public class Parse {
     public static String soundFileName = "C:\\Users\\Matthieu\\Desktop\\tada.wav";
     public static String moteIdentifier = "$0001";
     public static FileWriter fw;
+    public static ArrayList<Double> buffer;
+    public static final int buffer_size = 50;
+    public static double stdStop;
 
     /**
      * Test that the parser works properly
@@ -35,21 +38,22 @@ public class Parse {
      */
     public static void main(String[] args) {
         double threshold = 20.3;
-        String lineTest1 = "$0001,-84.2F,2.6,0.17,N#";
-        System.out.println(Parse.parseAndAlert(lineTest1, threshold, true)); //true
-        System.out.println(Parse.parseAndAlert(lineTest1, threshold, false)); //false
-        System.out.println();
-        String lineTest2 = "$0001,-14.2F,2.6,0.17,N#";
-        System.out.println(Parse.parseAndAlert(lineTest2, threshold, true)); //false
-        System.out.println(Parse.parseAndAlert(lineTest2, threshold, false)); //false
-        System.out.println();
-        String lineTest3 = "$0001, 84.2F,2.6,0.17,N#";
-        System.out.println(Parse.parseAndAlert(lineTest3, threshold, true)); //true
-        System.out.println(Parse.parseAndAlert(lineTest3, threshold, false)); //true
-        System.out.println();
-        String lineTest4 = "$0001, 14.2F,2.6,0.17,N#";
-        System.out.println(Parse.parseAndAlert(lineTest4, threshold, true)); //false
-        System.out.println(Parse.parseAndAlert(lineTest4, threshold, false)); //falsetry
+//        Parse.buffer = new ArrayList<Double>();
+//        String lineTest1 = "$0001,-84.2F,2.6,0.17,N#";
+//        System.out.println(Parse.parseAndAlert(lineTest1, threshold, true)); //true
+//        System.out.println(Parse.parseAndAlert(lineTest1, threshold, false)); //false
+//        System.out.println();
+//        String lineTest2 = "$0001,-14.2F,2.6,0.17,N#";
+//        System.out.println(Parse.parseAndAlert(lineTest2, threshold, true)); //false
+//        System.out.println(Parse.parseAndAlert(lineTest2, threshold, false)); //false
+//        System.out.println();
+//        String lineTest3 = "$0001, 84.2F,2.6,0.17,N#";
+//        System.out.println(Parse.parseAndAlert(lineTest3, threshold, true)); //true
+//        System.out.println(Parse.parseAndAlert(lineTest3, threshold, false)); //true
+//        System.out.println();
+//        String lineTest4 = "$0001, 14.2F,2.6,0.17,N#";
+//        System.out.println(Parse.parseAndAlert(lineTest4, threshold, true)); //false
+//        System.out.println(Parse.parseAndAlert(lineTest4, threshold, false)); //falsetry
         try {
             Parse.ring();
         } catch (Exception ex) {
@@ -65,6 +69,8 @@ public class Parse {
         Parse.threshold = new Double(props.getProperty("temperature_threshold"));
         Parse.moteIdentifier = props.getProperty("mote_identifier");
         Parse.fw = new FileWriter(new File(props.getProperty("file_to_write") + ".txt"));
+        Parse.buffer = new ArrayList<Double>();
+        Parse.stdStop = new Double(props.getProperty("stddev_threshold"));
         System.out.println("System initialized.");
     }
 
@@ -77,7 +83,7 @@ public class Parse {
      * @return true if the alarm should ring
      */
     public static boolean parseAndAlert(String line, double threshold, boolean takeAbsValues) {
-        if (line.equals("")) {
+        if (line.equals("") || !line.contains("F") || line == null) {
             System.err.println("Parse: invalid message.");
             return false;
         }
@@ -100,12 +106,41 @@ public class Parse {
             temp = temp.substring(1);
         }
         double temperature = Double.parseDouble(temp);
+        double maximum = 0.0;
+        double minimum = 2000.0;
+        double avg = 0;
+        double avg2 = 0;
         if (line.contains(Parse.moteIdentifier)) {
+            //Store the temp in the buffer
+            Parse.buffer.add(temperature);
+            //Make sure the buffer is still size 50
+            while(Parse.buffer.size()>Parse.buffer_size){
+                Parse.buffer.remove(0);
+            }
+            // Compute the stddev and mean on the buffer
+            for (double tBuf : Parse.buffer){
+                if (tBuf > maximum){
+                    maximum = tBuf;
+                }
+                if(tBuf < minimum){
+                    minimum = tBuf;
+                }
+                avg+=tBuf;
+                avg2+=tBuf*tBuf;
+            }
+            avg=avg/Parse.buffer.size();
+            avg2=avg2/Parse.buffer.size();
+            double stddev = java.lang.Math.sqrt(avg2-avg*avg);
             if (temperature > threshold) {
                 result = true;
                 Parse.message = "Temperature when stopped: " + temperature;
             }
+            if(Parse.buffer.size() == Parse.buffer_size && stddev<Parse.stdStop){
+                result = true;
+                Parse.message = "Standard deviation when stopped: " + stddev;
+            }
             System.out.println(temperature + "F....  Is it too high?  " + result);
+            System.out.println("%%%%%%%%%%%%%%%%%%%%Stddev :" + stddev + "\n");
             Parse.storeData(mote, temperature);
         }
         return result;
