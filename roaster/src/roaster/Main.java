@@ -22,8 +22,9 @@ public class Main {
                 // Ring
                 Parse.ring();
                 // Wait 25 secs
-                Thread.sleep(25000);
+                Thread.sleep(24000);
                 // Countdown
+                Parse.soundFileName = Parse.countdownFileName;
                 Parse.ring();
                 System.exit(0);
             } catch (Exception ex) {

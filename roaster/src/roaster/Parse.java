@@ -26,6 +26,7 @@ public class Parse {
     public static double threshold = 100.0;
     public static String message = "No message";
     public static String soundFileName = "C:\\Users\\Matthieu\\Desktop\\tada.wav";
+    public static String countdownFileName = "C:/Users/Matthieu/Desktop/countdown.wav";
     public static String moteIdentifier = "$0001";
     public static FileWriter fw;
     public static ArrayList<Double> buffer;
@@ -54,6 +55,7 @@ public class Parse {
 //        String lineTest4 = "$0001, 14.2F,2.6,0.17,N#";
 //        System.out.println(Parse.parseAndAlert(lineTest4, threshold, true)); //false
 //        System.out.println(Parse.parseAndAlert(lineTest4, threshold, false)); //falsetry
+        Parse.soundFileName = "C:/Users/Matthieu/Desktop/countdown.wav";
         try {
             Parse.ring();
         } catch (Exception ex) {
@@ -71,6 +73,7 @@ public class Parse {
         Parse.fw = new FileWriter(new File(props.getProperty("file_to_write") + ".txt"));
         Parse.buffer = new ArrayList<Double>();
         Parse.stdStop = new Double(props.getProperty("stddev_threshold"));
+        Parse.countdownFileName = props.getProperty("countdown_file_name");
         System.out.println("System initialized.");
     }
 
